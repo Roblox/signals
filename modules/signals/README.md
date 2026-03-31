@@ -2,6 +2,8 @@
 
 A minimal and scalable reactive state management framework for Luau.
 
+TEST!
+
 ## Overview
 
 Signals provides fine-grained reactive primitives for building reactive systems. The core library consists of three fundamental primitives that enable automatic dependency tracking and efficient updates.

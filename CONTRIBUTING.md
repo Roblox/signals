@@ -1,0 +1,77 @@
+# Contributing to Signals
+
+## Getting Started
+
+Thanks for your interest in contributing! This document covers how to set up the project locally, run checks, and submit changes.
+
+## Ways to Contribute
+
+- **Bug Reports:** Open a [GitHub Issue](https://github.com/Roblox/signals/issues/new) with a clear description and reproduction steps.
+- **Feature Requests:** Open an issue with your idea and rationale.
+- **Code Contributions:** Clone this repository, create a branch, and submit a PR (see below for PR guidelines).
+
+## Repository Structure
+
+The repository is a [Wally](https://wally.run/) workspace. Source code lives under `modules/`, with each package containing its own `src/` directory and tests at `src/__tests__/`.
+
+```
+modules/
+  signals/              # Core reactive primitives
+  signals-scheduler/    # Batch/flush micro-scheduler
+  signals-react/        # React integration hooks
+  signals-roblox/       # Roblox-specific bindings
+  signals-experimental/ # Experimental utilities
+  resources/            # Lifetime and scoping primitives
+  resources-react/      # React hook for resources
+```
+
+Please only make modifications in the directories above. If you want to add or modify any of the repo tooling or packages (e.g. updating foreman.toml or wally.toml), please open an issue and reach out to the maintainers for assistance.
+
+## Code Guidelines
+
+All CLI tools are installed via [Foreman](https://github.com/Roblox/foreman) (`foreman install`).
+
+Contributions should follow existing code styling. In support of this, we use the following tools:
+
+- All Luau code should be formatted with [StyLua](https://github.com/JohnnyMorganz/StyLua) and pass [Selene](https://kampfkarren.github.io/selene/) linting.
+- Static analysis uses [luau-lsp](https://github.com/JohnnyMorganz/luau-lsp). The full type check can be run locally:
+
+```bash
+rojo sourcemap default.project.json -o sourcemap.json
+wally-package-types --sourcemap sourcemap.json Packages
+wally-package-types --sourcemap sourcemap.json DevPackages
+curl -sO https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/master/scripts/globalTypes.d.luau
+luau-lsp analyze --defs globalTypes.d.luau --sourcemap sourcemap.json modules
+```
+
+Additionally:
+
+1. Every functionality change should come with tests that express the desired behavior of the code being added.
+2. Tests live in each module's `src/__tests__/` directory and run in CI via [rocale-cli](https://github.com/Roblox/rocale-cli). See the [rocale-cli repository](https://github.com/Roblox/rocale-cli) for instructions on setting up local test execution.
+3. Small, incremental contributions are preferred over sweeping changes.
+
+Running tests locally example
+```bash
+wally install
+export ROBLOX_API_KEY="your generated OCALE api key"
+rocale-cli run \
+  	--placeId $ROBLOX_PLACE_ID \
+  	--universeId $ROBLOX_UNIVERSE_ID \
+  	--load.project default.project.json \
+  	--script scripts/test.lua \
+  	--lua.globals __DEV__=true,__ROACT_17_INLINE_ACT__=true,__ROACT_17_MOCK_SCHEDULER__=true \
+  	--verbose
+```
+
+## Pull Request Guidelines
+
+When submitting a pull request:
+
+1. Create a feature branch from `main`.
+2. Ensure lint, format, and type checks pass before opening a PR.
+3. Write a clear PR title that describes the change from a user's perspective.
+4. All pull requests must pass the `analyze` and `test` CI workflows before merging.
+
+## Licensing
+
+By providing code in an issue or opening a pull request, you agree to license that code under the MIT License, and indicate that you have the legal right to do so.

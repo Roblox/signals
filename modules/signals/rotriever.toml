@@ -1,0 +1,14 @@
+[package]
+name = "Signals"
+version = { workspace = true }
+publish = true
+authors = ["Jonathan Kelaty <jkelaty@roblox.com>"]
+content_root = "src"
+files = ["*", "!jest.config.lua", "!**/__tests__/**"]
+
+[dependencies]
+SignalsScheduler = { path = "../signals-scheduler" }
+
+[dev_dependencies]
+Jest = { workspace = true }
+JestGlobals = { workspace = true }

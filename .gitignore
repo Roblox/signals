@@ -1,0 +1,17 @@
+# Libraries don't commit lockfiles, apps do
+rotriever.lock
+wally.lock
+
+# Build artifacts
+Packages/*
+DevPackages/*
+
+globalTypes.d.luau
+output.rbxl
+profile.out
+sourcemap.json
+
+# Misc OS files
+**/*.DS_Store*
+*.log
+.vscode/**

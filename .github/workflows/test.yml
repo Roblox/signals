@@ -1,0 +1,45 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install foreman
+        uses: Roblox/setup-foreman@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allow-external-github-orgs: true
+
+      - name: Tool check
+        run: |
+          foreman list
+
+      - name: Install packages
+        run: |
+          wally install
+
+      - name: Run tests
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+        run: |
+          rocale-cli run \
+            --placeId ${{ secrets.ROBLOX_PLACE_ID }} \
+            --universeId ${{ secrets.ROBLOX_UNIVERSE_ID }} \
+            --load.project default.project.json \
+            --script scripts/test.lua \
+            --lua.globals __DEV__=true,__ROACT_17_INLINE_ACT__=true,__ROACT_17_MOCK_SCHEDULER__=true \
+            --verbose

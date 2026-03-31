@@ -1,0 +1,6 @@
+{
+	"testsPath": "$configDir/scripts",
+	"testRunner": "robloxdev-cli",
+	"fastFlags": ["default", "allOn"],
+	"rerun": 0
+}

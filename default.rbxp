@@ -1,0 +1,16 @@
+{
+	"instanceHierarchy": {
+		"tree": {
+			"$className": "DataModel",
+			"ReplicatedStorage": {
+				"$className": "ReplicatedStorage",
+				"Packages": {
+					"$path": "Packages",
+					".luaurc": {
+						"$path": ".luaurc"
+					}
+				}
+			}
+		}
+	}
+}

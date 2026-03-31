@@ -1,0 +1,134 @@
+local Root = script:FindFirstAncestor("SignalsScheduler")
+local Packages = Root.Parent
+
+local JestGlobals = require(Packages.Dev.JestGlobals)
+local expect = JestGlobals.expect
+local it = JestGlobals.it
+
+local SignalsScheduler = require(script.Parent.Parent.SignalsScheduler)
+local batch = SignalsScheduler.batch
+local flush = SignalsScheduler.flush
+local schedule = SignalsScheduler.schedule
+
+it("should schedule work without running until flushed", function()
+	local counters = {
+		foo = 0,
+		bar = 0,
+	}
+
+	local function foo()
+		counters.foo += 1
+	end
+
+	local function bar()
+		counters.bar += 1
+	end
+
+	schedule(foo)
+	schedule(bar)
+
+	task.wait()
+
+	expect(counters).toEqual({
+		foo = 0,
+		bar = 0,
+	})
+
+	flush()
+
+	expect(counters).toEqual({
+		foo = 1,
+		bar = 1,
+	})
+
+	schedule(foo)
+	schedule(foo)
+	schedule(foo)
+	schedule(bar)
+
+	expect(counters).toEqual({
+		foo = 1,
+		bar = 1,
+	})
+
+	flush()
+
+	expect(counters).toEqual({
+		foo = 4,
+		bar = 2,
+	})
+end)
+
+it("should support incremental scheduling", function()
+	local counters = {
+		foo = 0,
+		bar = 0,
+		baz = 0,
+	}
+
+	local function foo()
+		counters.foo += 1
+	end
+
+	local function bar()
+		schedule(foo)
+		counters.bar += 1
+	end
+
+	local function baz()
+		schedule(bar)
+		counters.baz += 1
+	end
+
+	schedule(baz)
+
+	task.wait()
+
+	expect(counters).toEqual({
+		foo = 0,
+		bar = 0,
+		baz = 0,
+	})
+
+	flush()
+
+	expect(counters).toEqual({
+		foo = 1,
+		bar = 1,
+		baz = 1,
+	})
+end)
+
+it("should support batching scheduled work", function()
+	local counters = {
+		foo = 0,
+		bar = 0,
+	}
+
+	local function foo()
+		counters.foo += 1
+	end
+
+	local function bar()
+		counters.bar += 1
+	end
+
+	batch(function()
+		schedule(foo)
+		schedule(bar)
+	end)
+
+	task.wait()
+
+	expect(counters).toEqual({
+		foo = 1,
+		bar = 1,
+	})
+
+	flush()
+
+	expect(counters).toEqual({
+		foo = 1,
+		bar = 1,
+	})
+end)

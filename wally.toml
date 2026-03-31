@@ -1,0 +1,18 @@
+[package]
+name = "roblox/signals"
+version = "0.6.0"
+registry = "https://github.com/upliftgames/wally-index"
+realm = "shared"
+private = true
+
+[place]
+shared-packages = "game.ReplicatedStorage.Packages"
+
+[dependencies]
+React = "jsdotlua/react@17.2.1"
+
+[dev-dependencies]
+Jest = "jsdotlua/jest@3.10.0"
+JestBenchmark = "jsdotlua/jest-benchmark@3.10.0"
+JestGlobals = "jsdotlua/jest-globals@3.10.0"
+ReactRoblox = "jsdotlua/react-roblox@17.2.1"

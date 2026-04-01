@@ -25,7 +25,7 @@ modules/
   resources-react/      # React hook for resources
 ```
 
-Please only make modifications in the directories above. If you want to add or modify any of the repo tooling or packages (e.g. updating foreman.toml or wally.toml), please open an issue and reach out to the maintainers for assistance.
+Please only make modifications in the directories above. You may notice there are duplicate config files for some of our tooling (e.g. foreman.toml vs foreman-internal.toml, rotriever.toml vs wally.toml, default.project.json vs default.rbxp) as well as some internal specific files (e.g. .lestrc). Repo maintainers use these internal specific files to run the same tests on different tooling. If you want to add or modify any of the repo tooling or packages (e.g. updating foreman.toml or wally.toml), please open an issue and reach out to the maintainers for assistance.
 
 ## Code Guidelines
 
@@ -62,6 +62,20 @@ rocale-cli run \
   	--lua.globals __DEV__=true,__ROACT_17_INLINE_ACT__=true,__ROACT_17_MOCK_SCHEDULER__=true \
   	--verbose
 ```
+
+## Setting up a Fork
+
+1. Create a fork of the repository using the Github UI
+2. Generate an API key for OCALE (skip if you already have this)
+	- Create a new experience
+	- Go to your newly created experience, click on Places and get your universe and place ID
+	- Navigate to the API Keys tab
+	- Create a new API key with write access to your experience for `luau-execution-sessions` and `universe-places`
+5. On your fork, add these secrets
+   - `ROBLOX_API_KEY`
+   - `TEST_PLACE_ID`
+   - `TEST_UNIVERSE_ID`
+
 
 ## Pull Request Guidelines
 

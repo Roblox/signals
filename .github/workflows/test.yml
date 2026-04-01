@@ -12,6 +12,7 @@ concurrency:
 
 jobs:
   test:
+    environment: integration
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

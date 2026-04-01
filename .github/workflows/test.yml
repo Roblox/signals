@@ -2,6 +2,7 @@ name: test
 
 on:
   pull_request:
+  pull_request_target: 
   push:
     branches:
       - main
@@ -12,6 +13,7 @@ concurrency:
 
 jobs:
   test:
+    environment: integration
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

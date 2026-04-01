@@ -63,7 +63,7 @@ rocale-cli run \
   	--verbose
 ```
 
-## Setting up a Fork
+## Setting up a Fork To Run CI
 
 1. Create a fork of the repository using the Github UI
 2. Generate an API key for OCALE (skip if you already have this)
@@ -75,7 +75,6 @@ rocale-cli run \
    - `ROBLOX_API_KEY`
    - `TEST_PLACE_ID`
    - `TEST_UNIVERSE_ID`
-
 
 ## Pull Request Guidelines
 

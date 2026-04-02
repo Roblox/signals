@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   test:
-    environment: ${{ github.event_name == 'pull_request_target' && 'integration' || null }}
+    environment: ${{ github.event_name == 'pull_request_target' && 'PR' || 'CI' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

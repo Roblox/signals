@@ -3,7 +3,6 @@ name = "roblox/signals"
 version = "0.6.0"
 registry = "https://github.com/upliftgames/wally-index"
 realm = "shared"
-private = true
 
 [place]
 shared-packages = "game.ReplicatedStorage.Packages"

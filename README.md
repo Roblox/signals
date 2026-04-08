@@ -1,13 +1,11 @@
 # signals
 
+[![ci](https://github.com/Roblox/signals/actions/workflows/ci.yml/badge.svg)](https://github.com/Roblox/signals/actions/workflows/ci.yml)
 [![Get it on Creator Store](./.github/assets/link-creator-store.svg)](https://create.roblox.com/store/asset/71408264115531/Signals)
 [![Contributions welcome](./.github/assets/link-contributions.svg)](CONTRIBUTING.md)
 [![Wally (external link)](./.github/assets/link-wally.svg)](https://wally.run/package/roblox/signals)
 
 Scalable and minimal reactive programming framework for [Luau](https://luau.org/).
-
-[![analyze](https://github.com/Roblox/signals/actions/workflows/analyze.yml/badge.svg)](https://github.com/Roblox/signals/actions/workflows/analyze.yml)
-[![tests](https://github.com/Roblox/signals/actions/workflows/test.yml/badge.svg)](https://github.com/Roblox/signals/actions/workflows/test.yml)
 
 ## Overview
 

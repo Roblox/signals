@@ -1,8 +1,8 @@
 # signals
 
-Scalable and minimal reactive programming framework for [Luau](https://luau.org/).
-
 [![ci](https://github.com/Roblox/signals/actions/workflows/ci.yml/badge.svg)](https://github.com/Roblox/signals/actions/workflows/ci.yml)
+
+Scalable and minimal reactive programming framework for [Luau](https://luau.org/).
 
 ## Overview
 

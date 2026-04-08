@@ -1,5 +1,9 @@
 # signals
 
+[![Get it on Creator Store](./gh-assets/link-creator-store.svg)](https://create.roblox.com/store/asset/71408264115531/Signals)
+[![Contributions welcome](./gh-assets/link-contributions.svg)](CONTRIBUTING.md)
+[![Wally (external link)](./gh-assets/link-wally.svg)](https://wally.run/package/roblox/signals)
+
 Scalable and minimal reactive programming framework for [Luau](https://luau.org/).
 
 [![analyze](https://github.com/Roblox/signals/actions/workflows/analyze.yml/badge.svg)](https://github.com/Roblox/signals/actions/workflows/analyze.yml)

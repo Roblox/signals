@@ -1,6 +1,6 @@
 # Contributing to Signals
 
-## Getting Started
+<!-- [![Open for community contributions, click to learn more](./.github/assets/open-for-community-contributions.svg)](#todo-devforum-post) -->
 
 Thanks for your interest in contributing! This document covers how to set up the project locally, run checks, and submit changes.
 

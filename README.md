@@ -2,8 +2,7 @@
 
 Scalable and minimal reactive programming framework for [Luau](https://luau.org/).
 
-[![analyze](https://github.com/Roblox/signals/actions/workflows/analyze.yml/badge.svg)](https://github.com/Roblox/signals/actions/workflows/analyze.yml)
-[![tests](https://github.com/Roblox/signals/actions/workflows/test.yml/badge.svg)](https://github.com/Roblox/signals/actions/workflows/test.yml)
+[![ci](https://github.com/Roblox/signals/actions/workflows/ci.yml/badge.svg)](https://github.com/Roblox/signals/actions/workflows/ci.yml)
 
 ## Overview
 

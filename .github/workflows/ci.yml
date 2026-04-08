@@ -1,4 +1,4 @@
-name: test
+name: analyze
 
 on:
   pull_request_target:
@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  analyze:
     environment: ${{ github.event_name == 'pull_request_target' && 'integration' || 'trunk' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -36,6 +36,31 @@ jobs:
       - name: Install packages
         run: |
           wally install
+
+      - name: Lint check
+        run: |
+          selene modules
+
+      - name: Style check
+        run: |
+          stylua -c modules
+
+      - name: Generate sourcemap
+        run: |
+          rojo sourcemap default.project.json -o sourcemap.json
+
+      - name: Export types
+        run: |
+          wally-package-types --sourcemap sourcemap.json Packages
+          wally-package-types --sourcemap sourcemap.json DevPackages
+
+      - name: Fetch types
+        run: |
+          curl -s -O https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/master/scripts/globalTypes.d.luau
+
+      - name: Type check
+        run: |
+          luau-lsp analyze --defs globalTypes.d.luau --sourcemap sourcemap.json modules
 
       - name: Run tests
         env:

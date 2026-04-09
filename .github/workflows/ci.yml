@@ -1,4 +1,4 @@
-name: analyze
+name: ci
 
 on:
   pull_request_target:
@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  analyze:
+  ci:
     environment: ${{ github.event_name == 'pull_request_target' && 'integration' || 'trunk' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -1,8 +1,12 @@
 [package]
 name = "roblox/signals"
+description = "Scalable and minimal reactive programming framework for Luau."
 version = "0.6.0"
-registry = "https://github.com/upliftgames/wally-index"
+license = "MIT"
+authors = ["Roblox <noreply@roblox.com>"]
 realm = "shared"
+registry = "https://github.com/upliftgames/wally-index"
+repository = "https://github.com/Roblox/signals"
 
 [place]
 shared-packages = "game.ReplicatedStorage.Packages"

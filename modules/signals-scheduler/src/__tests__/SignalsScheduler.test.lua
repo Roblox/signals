@@ -132,3 +132,75 @@ it("should support batching scheduled work", function()
 		bar = 1,
 	})
 end)
+
+it("should reset after batched work errors", function()
+	local counters = {
+		foo = 0,
+		bar = 0,
+	}
+
+	local function foo()
+		counters.foo += 1
+	end
+
+	local function bar()
+		counters.bar += 1
+	end
+
+	expect(function()
+		batch(function()
+			schedule(foo)
+			error("batch failed")
+		end)
+	end).toThrow("batch failed")
+
+	expect(counters).toEqual({
+		foo = 0,
+		bar = 0,
+	})
+
+	schedule(bar)
+	flush()
+
+	expect(counters).toEqual({
+		foo = 0,
+		bar = 1,
+	})
+end)
+
+it("should reset after scheduled work errors", function()
+	local counters = {
+		foo = 0,
+		bar = 0,
+	}
+
+	local function foo()
+		counters.foo += 1
+	end
+
+	local function bar()
+		counters.bar += 1
+	end
+
+	expect(function()
+		batch(function()
+			schedule(function()
+				error("scheduled work failed")
+			end)
+			schedule(foo)
+		end)
+	end).toThrow("scheduled work failed")
+
+	expect(counters).toEqual({
+		foo = 0,
+		bar = 0,
+	})
+
+	schedule(bar)
+	flush()
+
+	expect(counters).toEqual({
+		foo = 0,
+		bar = 1,
+	})
+end)

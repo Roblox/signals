@@ -7,12 +7,20 @@ local continuations: { work } = {}
 local function batch(fn: work)
 	if not isContinuing then
 		isContinuing = true
-		fn()
-		for _, work in continuations do
-			work()
-		end
+
+		local ok, err = xpcall(function()
+			fn()
+			for _, work in continuations do
+				work()
+			end
+		end, debug.traceback)
+
 		table.clear(continuations)
 		isContinuing = false
+
+		if not ok then
+			error(err, 0)
+		end
 	else
 		fn()
 	end

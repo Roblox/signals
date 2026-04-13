@@ -7,7 +7,7 @@ local function runStep(name: string, command: { string }, options: process.Proce
 		stdio = "inherit",
 	}, options))
 	if not result.ok then
-		error(`{name} failed: {result.stderr}`)
+		error(`{name} failed to run`)
 	end
 end
 

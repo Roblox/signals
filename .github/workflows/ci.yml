@@ -33,43 +33,5 @@ jobs:
         run: |
           foreman list
 
-      - name: Install packages
-        run: |
-          wally install
-
-      - name: Lint check
-        run: |
-          selene modules
-
-      - name: Style check
-        run: |
-          stylua -c modules
-
-      - name: Generate sourcemap
-        run: |
-          rojo sourcemap default.project.json -o sourcemap.json
-
-      - name: Export types
-        run: |
-          wally-package-types --sourcemap sourcemap.json Packages
-          wally-package-types --sourcemap sourcemap.json DevPackages
-
-      - name: Fetch types
-        run: |
-          curl -s -O https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/master/scripts/globalTypes.d.luau
-
-      - name: Type check
-        run: |
-          luau-lsp analyze --defs globalTypes.d.luau --sourcemap sourcemap.json modules
-
-      - name: Run tests
-        env:
-          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
-        run: |
-          rocale-cli run \
-            --placeId ${{ secrets.ROBLOX_PLACE_ID }} \
-            --universeId ${{ secrets.ROBLOX_UNIVERSE_ID }} \
-            --load.project default.project.json \
-            --script scripts/test.lua \
-            --lua.globals __DEV__=true,__ROACT_17_INLINE_ACT__=true,__ROACT_17_MOCK_SCHEDULER__=true \
-            --verbose
+      - name: Run CI
+        run: lute ci

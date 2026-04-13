@@ -55,7 +55,7 @@ Additionally:
 3. Small, incremental contributions are preferred over sweeping changes.
 4. **Behavioral changes should be gated behind a FastFlag.** Roblox ships this library to a large number of users internally, and as a safety guard, new behavior needs to be rolled out incrementally and be easy to roll back if issues arise. When your PR changes observable behavior, structure the code so both the old and new paths coexist, toggled by a feature flag. A maintainer can help you add the flag if you're unsure. The general pattern looks like this:
 
-```lua
+```luau
 local _, FFlagMyNewFeature = xpcall(function()
 	return game:DefineFastFlag("MyNewFeature", false)
 end, function()

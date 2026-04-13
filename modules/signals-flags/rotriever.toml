@@ -1,0 +1,7 @@
+[package]
+name = "SignalsFlags"
+version = { workspace = true }
+publish = true
+authors = ["Jonathan Kelaty <jkelaty@roblox.com>"]
+content_root = "src"
+files = ["*"]

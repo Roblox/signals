@@ -12,13 +12,10 @@ local Signals = require(Packages.Signals)
 local createSignal = Signals.createSignal
 local createComputed = Signals.createComputed
 
-local useSignalState = require(script.Parent.Parent.useSignalState)
+local SignalsFlags = require(Packages.SignalsFlags)
+local SignalsReactUseMutableSource = SignalsFlags.SignalsReactUseMutableSource
 
-local _, FFlagSignalsReactUseMutableSource = xpcall(function()
-	return game:DefineFastFlag("SignalsReactUseMutableSource", false)
-end, function()
-	return true
-end)
+local useSignalState = require(script.Parent.Parent.useSignalState)
 
 it("should return state synchronously", function()
 	local rendered = {}
@@ -45,7 +42,7 @@ it("should return state synchronously", function()
 		task.wait()
 	end)
 
-	if FFlagSignalsReactUseMutableSource then
+	if SignalsReactUseMutableSource then
 		expect(#rendered).toEqual(4)
 		expect(rendered).toEqual({ 1, 1, 2, 2 })
 	else
@@ -58,7 +55,7 @@ it("should return state synchronously", function()
 		task.wait()
 	end)
 
-	if FFlagSignalsReactUseMutableSource then
+	if SignalsReactUseMutableSource then
 		expect(#rendered).toEqual(4)
 		expect(rendered).toEqual({ 1, 1, 2, 2 })
 	else
@@ -74,7 +71,7 @@ it("should return state synchronously", function()
 		root:render(React.createElement(mockComponent, { get = getDerived }))
 	end)
 
-	if FFlagSignalsReactUseMutableSource then
+	if SignalsReactUseMutableSource then
 		expect(#rendered).toEqual(6)
 		expect(rendered).toEqual({ 1, 1, 2, 2, 2, 2 })
 	else
@@ -87,7 +84,7 @@ it("should return state synchronously", function()
 		task.wait()
 	end)
 
-	if FFlagSignalsReactUseMutableSource then
+	if SignalsReactUseMutableSource then
 		expect(#rendered).toEqual(8)
 		expect(rendered).toEqual({ 1, 1, 2, 2, 2, 2, 3, 3 })
 	else

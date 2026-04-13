@@ -14,6 +14,9 @@
     "SignalsExperimental": {
       "$path": "modules/signals-experimental/src"
     },
+    "SignalsFlags": {
+      "$path": "modules/signals-flags/src"
+    },
     "SignalsImplicitScope": {
       "$path": "modules/signals-implicit-scope/src"
     },

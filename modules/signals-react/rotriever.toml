@@ -9,6 +9,7 @@ files = ["*", "!jest.config.lua", "!**/__tests__/**"]
 [dependencies]
 React = { workspace = true }
 Signals = { path = "../signals" }
+SignalsFlags = { path = "../signals-flags" }
 
 [dev_dependencies]
 Jest = { workspace = true }

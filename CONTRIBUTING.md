@@ -25,7 +25,7 @@ modules/
   resources-react/      # React hook for resources
 ```
 
-Please only make modifications in the directories above. You may notice there are duplicate config files for some of our tooling (e.g. foreman.toml vs foreman-internal.toml, rotriever.toml vs wally.toml, default.project.json vs default.rbxp) as well as some internal specific files (e.g. .lestrc). Repo maintainers use these internal specific files to run the same tests on different tooling. If you want to add or modify any of the repo tooling or packages (e.g. updating foreman.toml or wally.toml), please open an issue and reach out to the maintainers for assistance.
+Please only make modifications in the directories above. You may notice there are duplicate config files for some of our tooling (e.g. foreman.toml vs foreman-internal.toml, rotriever.toml vs wally.toml, test.project.json vs default.rbxp) as well as some internal specific files (e.g. .lestrc). Repo maintainers use these internal specific files to run the same tests on different tooling. The `default.project.json` describes the published Wally package layout; `test.project.json` is the development place used for local testing and CI. If you want to add or modify any of the repo tooling or packages (e.g. updating foreman.toml or wally.toml), please open an issue and reach out to the maintainers for assistance.
 
 > [!NOTE]
 > You may notice that we depend on some packages (for example, Jest) which are still based on the legacy source-available mirroring process.
@@ -41,7 +41,7 @@ Contributions should follow existing code styling. In support of this, we use th
 - Static analysis uses [luau-lsp](https://github.com/JohnnyMorganz/luau-lsp). The full type check can be run locally:
 
 ```bash
-rojo sourcemap default.project.json -o sourcemap.json
+rojo sourcemap test.project.json -o sourcemap.json
 wally-package-types --sourcemap sourcemap.json Packages
 wally-package-types --sourcemap sourcemap.json DevPackages
 curl -sO https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/master/scripts/globalTypes.d.luau
@@ -53,6 +53,21 @@ Additionally:
 1. Every functionality change should come with tests that express the desired behavior of the code being added.
 2. Tests live in each module's `src/__tests__/` directory and run in CI via [rocale-cli](https://github.com/Roblox/rocale-cli). See the [rocale-cli repository](https://github.com/Roblox/rocale-cli) for instructions on setting up local test execution.
 3. Small, incremental contributions are preferred over sweeping changes.
+4. **Behavioral changes should be gated behind a FastFlag.** Roblox ships this library to a large number of users internally, so new behavior needs to be rolled out incrementally and be easy to roll back if issues arise. When your PR changes observable behavior, structure the code so both the old and new paths coexist, switched by a flag. A maintainer can help you add the flag if you're unsure — the pattern looks like this:
+
+```lua
+local _, FFlagMyNewFeature = xpcall(function()
+	return game:DefineFastFlag("MyNewFeature", false)
+end, function()
+	-- Falls back to enabled outside of the Roblox engine
+	return true
+end)
+
+-- Keep both paths until the flag is fully rolled out
+return if FFlagMyNewFeature then newImpl else oldImpl
+```
+
+If your change is a pure addition (new module, new export) with no impact on existing behavior, a flag is typically not needed.
 
 Running tests locally example
 ```bash
@@ -61,7 +76,7 @@ export ROBLOX_API_KEY="your generated OCALE api key"
 rocale-cli run \
   	--placeId $ROBLOX_PLACE_ID \
   	--universeId $ROBLOX_UNIVERSE_ID \
-  	--load.project default.project.json \
+  	--load.project test.project.json \
   	--script scripts/test.lua \
   	--lua.globals __DEV__=true,__ROACT_17_INLINE_ACT__=true,__ROACT_17_MOCK_SCHEDULER__=true \
   	--verbose

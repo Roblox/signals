@@ -47,7 +47,7 @@ jobs:
 
       - name: Generate sourcemap
         run: |
-          rojo sourcemap default.project.json -o sourcemap.json
+          rojo sourcemap test.project.json -o sourcemap.json
 
       - name: Export types
         run: |
@@ -69,7 +69,7 @@ jobs:
           rocale-cli run \
             --placeId ${{ secrets.ROBLOX_PLACE_ID }} \
             --universeId ${{ secrets.ROBLOX_UNIVERSE_ID }} \
-            --load.project default.project.json \
+            --load.project test.project.json \
             --script scripts/test.lua \
             --lua.globals __DEV__=true,__ROACT_17_INLINE_ACT__=true,__ROACT_17_MOCK_SCHEDULER__=true \
             --verbose

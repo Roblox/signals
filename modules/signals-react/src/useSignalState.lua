@@ -5,11 +5,8 @@ local Signals = require(Packages.Signals)
 local createEffect = Signals.createEffect
 type getter<T> = Signals.getter<T>
 
-local _, FFlagSignalsReactUseMutableSource = xpcall(function()
-	return game:DefineFastFlag("SignalsReactUseMutableSource", false)
-end, function()
-	return true
-end)
+local SignalsFlags = require(Packages.SignalsFlags)
+local SignalsReactUseMutableSource = SignalsFlags.SignalsReactUseMutableSource
 
 local function getSignalVersion(getter: getter<unknown>): number
 	local function dummyObserver(): ()
@@ -67,4 +64,4 @@ local function useSignalState_old<T>(getter: getter<T>): T
 	return value
 end
 
-return if FFlagSignalsReactUseMutableSource then useSignalState else useSignalState_old :: never
+return if SignalsReactUseMutableSource then useSignalState else useSignalState_old :: never

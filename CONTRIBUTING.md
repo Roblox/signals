@@ -53,21 +53,6 @@ Additionally:
 1. Every functionality change should come with tests that express the desired behavior of the code being added.
 2. Tests live in each module's `src/__tests__/` directory and run in CI via [rocale-cli](https://github.com/Roblox/rocale-cli). See the [rocale-cli repository](https://github.com/Roblox/rocale-cli) for instructions on setting up local test execution.
 3. Small, incremental contributions are preferred over sweeping changes.
-4. **Behavioral changes should be gated behind a FastFlag.** Roblox ships this library to a large number of users internally, so new behavior needs to be rolled out incrementally and be easy to roll back if issues arise. When your PR changes observable behavior, structure the code so both the old and new paths coexist, switched by a flag. A maintainer can help you add the flag if you're unsure — the pattern looks like this:
-
-```lua
-local _, FFlagMyNewFeature = xpcall(function()
-	return game:DefineFastFlag("MyNewFeature", false)
-end, function()
-	-- Falls back to enabled outside of the Roblox engine
-	return true
-end)
-
--- Keep both paths until the flag is fully rolled out
-return if FFlagMyNewFeature then newImpl else oldImpl
-```
-
-If your change is a pure addition (new module, new export) with no impact on existing behavior, a flag is typically not needed.
 
 Running tests locally example
 ```bash

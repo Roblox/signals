@@ -6,5 +6,3 @@ runStep(
 	"Type check",
 	{ "luau-lsp", "analyze", "--defs", "globalTypes.d.luau", "--sourcemap", "sourcemap.json", "modules" }
 )
-
-return {}

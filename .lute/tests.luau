@@ -24,5 +24,3 @@ runStep("Run tests", {
 	"__DEV__=true,__ROACT_17_INLINE_ACT__=true,__ROACT_17_MOCK_SCHEDULER__=true",
 	"--verbose",
 }, { env = { ROBLOX_API_KEY = apiKey } })
-
-return {}

@@ -33,5 +33,15 @@ jobs:
         run: |
           foreman list
 
-      - name: Run CI
-        run: lute ci
+      - name: Build
+        run: lute build
+
+      - name: Analyze
+        run: lute analyze
+
+      - name: Tests
+        env:
+          ROBLOX_PLACE_ID: ${{ secrets.ROBLOX_PLACE_ID }}
+          ROBLOX_UNIVERSE_ID: ${{ secrets.ROBLOX_UNIVERSE_ID }}
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+        run: lute tests

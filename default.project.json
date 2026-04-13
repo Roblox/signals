@@ -1,44 +1,30 @@
 {
   "name": "signals",
   "tree": {
-    "$className": "DataModel",
-    "ServerScriptService": {
-      "$properties": {
-        "LoadStringEnabled": true
-      }
+    "$className": "Folder",
+    "Resources": {
+      "$path": "modules/resources/src"
     },
-    "ReplicatedStorage": {
-      "$className": "ReplicatedStorage",
-      "Packages": {
-        "$path": "Packages",
-        "Dev": {
-          "$path": "DevPackages"
-        },
-        "Resources": {
-          "$path": "modules/resources/src"
-        },
-        "ResourcesReact": {
-          "$path": "modules/resources-react/src"
-        },
-        "Signals": {
-          "$path": "modules/signals/src"
-        },
-        "SignalsExperimental": {
-          "$path": "modules/signals-experimental/src"
-        },
-        "SignalsImplicitScope": {
-          "$path": "modules/signals-implicit-scope/src"
-        },
-        "SignalsReact": {
-          "$path": "modules/signals-react/src"
-        },
-        "SignalsRoblox": {
-          "$path": "modules/signals-roblox/src"
-        },
-        "SignalsScheduler": {
-          "$path": "modules/signals-scheduler/src"
-        }
-      }
+    "ResourcesReact": {
+      "$path": "modules/resources-react/src"
+    },
+    "Signals": {
+      "$path": "modules/signals/src"
+    },
+    "SignalsExperimental": {
+      "$path": "modules/signals-experimental/src"
+    },
+    "SignalsImplicitScope": {
+      "$path": "modules/signals-implicit-scope/src"
+    },
+    "SignalsReact": {
+      "$path": "modules/signals-react/src"
+    },
+    "SignalsRoblox": {
+      "$path": "modules/signals-roblox/src"
+    },
+    "SignalsScheduler": {
+      "$path": "modules/signals-scheduler/src"
     }
   }
 }

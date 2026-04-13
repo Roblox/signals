@@ -17,7 +17,7 @@ runStep("Run tests", {
 	"--universeId",
 	universeId,
 	"--load.project",
-	"default.project.json",
+	"test.project.json",
 	"--script",
 	"scripts/test.lua",
 	"--lua.globals",

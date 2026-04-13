@@ -1,7 +1,7 @@
 {
   "name": "signals",
   "tree": {
-    "$path": "init.lua",
+    "$className": "Folder",
     "Resources": {
       "$path": "modules/resources/src"
     },

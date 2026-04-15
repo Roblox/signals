@@ -37,15 +37,16 @@ local function batch(fn: work)
 
 		if SignalsSchedulerResetStateAfterErrors then
 			local ok, err: any = xpcall(fn, debug.traceback)
-			if ok then
-				ok, err = runContinuations()
-			end
+			local continuationsOk, continuationsErr: any = runContinuations()
 
 			table.clear(continuations)
 			isContinuing = false
 
 			if not ok then
 				error(err, 0)
+			end
+			if not continuationsOk then
+				error(continuationsErr, 0)
 			end
 		else
 			runWork(fn)

@@ -137,7 +137,7 @@ it("should support batching scheduled work", function()
 end)
 
 if SignalsSchedulerResetStateAfterErrors then
-	it("should reset after batched work errors", function()
+	it("should drain scheduled work after batched work errors", function()
 		local counters = {
 			foo = 0,
 			bar = 0,
@@ -159,7 +159,7 @@ if SignalsSchedulerResetStateAfterErrors then
 		end).toThrow("batch failed")
 
 		expect(counters).toEqual({
-			foo = 0,
+			foo = 1,
 			bar = 0,
 		})
 
@@ -167,9 +167,69 @@ if SignalsSchedulerResetStateAfterErrors then
 		flush()
 
 		expect(counters).toEqual({
-			foo = 0,
+			foo = 1,
 			bar = 1,
 		})
+	end)
+
+	it("should drain pending work after batched work errors", function()
+		local counters = {
+			foo = 0,
+			bar = 0,
+		}
+
+		local function foo()
+			counters.foo += 1
+		end
+
+		local function bar()
+			counters.bar += 1
+		end
+
+		schedule(foo)
+
+		expect(function()
+			batch(function()
+				error("batch failed")
+			end)
+		end).toThrow("batch failed")
+
+		expect(counters).toEqual({
+			foo = 1,
+			bar = 0,
+		})
+
+		schedule(bar)
+		flush()
+
+		expect(counters).toEqual({
+			foo = 1,
+			bar = 1,
+		})
+	end)
+
+	it("should preserve batch errors when scheduled work also errors", function()
+		local ran = false
+		local recovered = false
+
+		expect(function()
+			batch(function()
+				schedule(function()
+					ran = true
+					error("scheduled work failed")
+				end)
+				error("batch failed")
+			end)
+		end).toThrow("batch failed")
+
+		expect(ran).toEqual(true)
+
+		schedule(function()
+			recovered = true
+		end)
+		flush()
+
+		expect(recovered).toEqual(true)
 	end)
 
 	it("should reset after scheduled work errors", function()

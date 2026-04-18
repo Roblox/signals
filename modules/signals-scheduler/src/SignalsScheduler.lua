@@ -17,15 +17,11 @@ end
 
 local function runContinuations(): (boolean, any)
 	local firstError: any = nil
-	local index = 1
-
-	while index <= #continuations do
-		local ok, err: any = xpcall(continuations[index], debug.traceback)
+	for _, work in continuations do
+		local ok, err: any = xpcall(work, debug.traceback)
 		if not ok and firstError == nil then
 			firstError = err
 		end
-
-		index += 1
 	end
 
 	return firstError == nil, firstError

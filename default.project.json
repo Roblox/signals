@@ -1,13 +1,7 @@
 {
   "name": "signals",
   "tree": {
-    "$className": "Folder",
-    "Resources": {
-      "$path": "modules/resources/src"
-    },
-    "ResourcesReact": {
-      "$path": "modules/resources-react/src"
-    },
+    "$path": "signals.lua",
     "Signals": {
       "$path": "modules/signals/src"
     },
@@ -17,14 +11,8 @@
     "SignalsFlags": {
       "$path": "modules/signals-flags/src"
     },
-    "SignalsImplicitScope": {
-      "$path": "modules/signals-implicit-scope/src"
-    },
     "SignalsReact": {
       "$path": "modules/signals-react/src"
-    },
-    "SignalsRoblox": {
-      "$path": "modules/signals-roblox/src"
     },
     "SignalsScheduler": {
       "$path": "modules/signals-scheduler/src"

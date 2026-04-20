@@ -6,6 +6,9 @@ authors = ["Jonathan Kelaty <jkelaty@roblox.com>"]
 content_root = "src"
 files = ["*", "!jest.config.lua", "!**/__tests__/**"]
 
+[dependencies]
+SignalsFlags = { path = "../signals-flags" }
+
 [dev_dependencies]
 Jest = { workspace = true }
 JestGlobals = { workspace = true }

@@ -26,7 +26,7 @@ local function createDetachedEffect(effect: (scope, dispose) -> ())
 	if isDisposed then
 		dispose()
 	else
-		local bindable = Instance.new("BindableEvent")
+		local bindable = Instance.new("BindableEvent", game)
 		event = bindable
 		bindable.Event:Once(function()
 			bindable:Destroy()

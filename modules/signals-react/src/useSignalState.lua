@@ -1,5 +1,5 @@
 local Packages = script.Parent.Parent
-local React = require(Packages.React)
+local React = require(Packages.Parent.React)
 
 local Signals = require(Packages.Signals)
 local createEffect = Signals.createEffect

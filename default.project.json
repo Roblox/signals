@@ -1,7 +1,7 @@
 {
   "name": "signals",
   "tree": {
-    "$path": "signals.lua",
+    "$path": "src",
     "Signals": {
       "$path": "modules/signals/src"
     },

@@ -99,6 +99,72 @@ local function FadingFrame()
 end
 ```
 
+---
+
+### connectSignals
+
+Connect a component to Signals state with full re-render control. Use this for components that read shared state and need to bail on re-renders the way `RoactRodux.connect`'s `PureComponent` boundary does — something a plain `useSignalState` wrapper cannot provide on its own.
+
+```luau
+function connectSignals(
+    mapSignalsToProps: (scope) -> { [string]: any }
+): (component: React.ComponentType<P>) -> React.ComponentType<P>
+```
+
+#### Parameters
+
+- **mapSignalsToProps**: `(scope) -> { [string]: any }` — reads signal getters via `getter(scope)` and returns a table of **derived state**. Return derived values only; do not create callbacks/functions here (the mapping re-runs on every signal change, so a fresh function each run defeats the shallow-equal bail). Create stable callbacks once outside and pass them as own-props.
+
+#### Returns
+
+- A function that takes a component and returns a connected component.
+
+#### Behavior
+
+A plain function component that reads signals re-renders on two triggers: (a) a signal it reads changes, or (b) its parent re-renders (React re-invokes every child by default). `connectSignals` keeps (a) and removes the wasteful part of (b) by combining three things:
+
+1. **Subscribe** — runs `mapSignalsToProps(scope)`, auto-tracking whatever getters it reads, and re-renders when those tracked values change.
+2. **Derive + bail** — wraps the mapping in `createComputed(..., shallowEqual)`, so when signals tick but the derived props are shallow-equal, the computed keeps the previous table reference and suppresses the update.
+3. **Boundary** — wraps the component in `React.memo`, so when a parent re-renders with shallow-equal own-props, React skips this component and its entire subtree.
+
+Net result: the component re-renders only when its derived signal props change **or** its own props change — never merely because an ancestor re-rendered with unchanged props. Own-props are merged over the mapped props and win on key collisions.
+
+#### Example
+
+```luau
+local React = require(Packages.React)
+local Signals = require(Packages.Signals)
+local SignalsReact = require(Packages.SignalsReact)
+
+local connectSignals = SignalsReact.connectSignals
+
+local getCount, setCount = Signals.createSignal(0)
+local getStep = Signals.createSignal(1)
+
+local function CounterView(props: { count: number, step: number, onIncrement: () -> () })
+    return React.createElement("TextButton", {
+        Text = `Count: {props.count} (+{props.step})`,
+        Size = UDim2.fromOffset(200, 50),
+        [React.Event.Activated] = props.onIncrement,
+    })
+end
+
+-- Stable callback lives outside the mapping so it does not defeat the bail.
+local function increment()
+    setCount(function(prev) return prev + 1 end)
+end
+
+local Counter = connectSignals(function(scope)
+    return {
+        count = getCount(scope),
+        step = getStep(scope),
+    }
+end)(CounterView)
+
+-- onIncrement is an own-prop, merged over the mapped props.
+local element = React.createElement(Counter, { onIncrement = increment })
+```
+
 ## Best Practices
 
 **Create signals outside components** to persist across renders:

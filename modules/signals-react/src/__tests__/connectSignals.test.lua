@@ -63,7 +63,7 @@ describe("connectSignals", function()
 			task.wait()
 		end)
 
-		expect(#h.rendered > before).toEqual(true)
+		expect(#h.rendered).toBeGreaterThan(before)
 		expect(h.rendered[#h.rendered]).toEqual("b")
 
 		h.cleanup()
@@ -151,7 +151,7 @@ describe("connectSignals", function()
 			task.wait()
 		end)
 
-		expect(plainRenders > plainBefore).toEqual(true)
+		expect(plainRenders).toBeGreaterThan(plainBefore)
 		expect(connectedRenders).toEqual(connectedBefore)
 
 		root:unmount()

@@ -12,6 +12,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     environment: ${{ github.event_name == 'pull_request_target' && 'integration' || 'trunk' }}
@@ -23,6 +26,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           allow-unsafe-pr-checkout: true
+          persist-credentials: false
 
       - name: Install foreman
         uses: Roblox/setup-foreman@v3

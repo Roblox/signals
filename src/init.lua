@@ -1,7 +1,6 @@
 --!strict
 local Signals = require(script.Signals)
 local SignalsExperimental = require(script.SignalsExperimental)
-local SignalsReact = require(script.SignalsReact)
 
 export type getter<T> = Signals.getter<T>
 export type setter<T> = Signals.setter<T>
@@ -18,7 +17,4 @@ return {
 
     onDisposed = SignalsExperimental.onDisposed,
     batch = SignalsExperimental.batch,
-
-    useSignalState = SignalsReact.useSignalState,
-    useSignalBinding = SignalsReact.useSignalBinding,
 }

@@ -6,4 +6,3 @@ rojo = { source = "rojo-rbx/rojo", version = "=7.5.1" }
 selene = { source = "Kampfkarren/selene", version = "=0.31.0" }
 stylua = { source = "JohnnyMorganz/StyLua", version = "=2.5.2" }
 wally = { source = "UpliftGames/wally", version = "=0.3.2" }
-wally-package-types = { source = "JohnnyMorganz/wally-package-types", version = "=1.6.2" }

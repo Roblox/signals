@@ -21,6 +21,6 @@ runStep("Run tests", {
 	"--script",
 	"scripts/test.lua",
 	"--lua.globals",
-	"__DEV__=true,__ROACT_17_INLINE_ACT__=true,__ROACT_17_MOCK_SCHEDULER__=true",
+	"__DEV__=true",
 	"--verbose",
 }, { env = { ROBLOX_API_KEY = apiKey } })

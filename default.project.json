@@ -11,9 +11,6 @@
     "SignalsFlags": {
       "$path": "modules/signals-flags/src"
     },
-    "SignalsReact": {
-      "$path": "modules/signals-react/src"
-    },
     "SignalsScheduler": {
       "$path": "modules/signals-scheduler/src"
     }

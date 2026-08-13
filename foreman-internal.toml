@@ -1,8 +1,8 @@
 [tools]
-lest = { source = "Roblox/lest", version = "=3.9.2" }
-rbx-aged-cli = { source = "Roblox/rbx-aged-tool", version = "=5.8.1" }
+lest = { source = "Roblox/lest", version = "=3.11.1" }
+rbx-aged-cli = { source = "Roblox/rbx-aged-tool", version = "=5.11.0" }
 rocale-cli = { source = "Roblox/rocale-cli", version = "=0.1.2" }
 rojo = { source = "Roblox/rojo-rbx-rojo", version = "=7.3.0" }
-rotrieve = { source = "Roblox/rotriever", version = "=0.5.21" }
-selene = { source = "Roblox/Kampfkarren-selene", version = "=0.29.0" }
+rotrieve = { source = "Roblox/rotriever", version = "=0.5.36" }
+selene = { source = "Roblox/Kampfkarren-selene", version = "=0.30.0" }
 stylua = { source = "Roblox/JohnnyMorganz-StyLua", version = "=2.0.1" }

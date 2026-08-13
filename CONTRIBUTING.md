@@ -98,8 +98,8 @@ rocale-cli run \
 	- Create a new API key with write access to your experience for `luau-execution-sessions` and `universe-places`
 5. On your fork, add these secrets
    - `ROBLOX_API_KEY`
-   - `TEST_PLACE_ID`
-   - `TEST_UNIVERSE_ID`
+   - `ROBLOX_PLACE_ID`
+   - `ROBLOX_UNIVERSE_ID`
 
 
 ## Pull Request Guidelines

@@ -11,10 +11,10 @@ export type dispose = Signals.dispose
 export type scope = Signals.scope
 
 return {
-    createSignal = Signals.createSignal,
-    createComputed = Signals.createComputed,
-    createEffect = Signals.createEffect,
+	createSignal = Signals.createSignal,
+	createComputed = Signals.createComputed,
+	createEffect = Signals.createEffect,
 
-    onDisposed = SignalsExperimental.onDisposed,
-    batch = SignalsExperimental.batch,
+	onDisposed = SignalsExperimental.onDisposed,
+	batch = SignalsExperimental.batch,
 }

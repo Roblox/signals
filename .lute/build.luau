@@ -1,4 +1,4 @@
-local runStep = require("@scripts/processExecution").runStep
+const runStep = require("@scripts/processExecution").runStep
 
 runStep("Install packages", { "wally", "install" })
 runStep("Generate sourcemap", { "rojo", "sourcemap", "test.project.json", "-o", "sourcemap.json" })

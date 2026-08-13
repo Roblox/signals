@@ -39,8 +39,6 @@ Contributions should follow existing code styling. In support of this, we use th
 
 ```bash
 rojo sourcemap test.project.json -o sourcemap.json
-wally-package-types --sourcemap sourcemap.json Packages
-wally-package-types --sourcemap sourcemap.json DevPackages
 curl -sO https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/master/scripts/globalTypes.d.luau
 luau-lsp analyze --defs globalTypes.d.luau --sourcemap sourcemap.json modules
 ```

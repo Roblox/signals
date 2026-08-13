@@ -19,5 +19,7 @@ if status == "Rejected" then
 	print(result)
 	error("Tests failed")
 elseif result.results.numFailedTestSuites > 0 or result.results.numFailedTests > 0 then
-	error(`Tests failed: {result.results.numFailedTests} failed tests, {result.results.numFailedTestSuites} failed suites`)
+	error(
+		`Tests failed: {result.results.numFailedTests} failed tests, {result.results.numFailedTestSuites} failed suites`
+	)
 end

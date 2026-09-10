@@ -1,30 +1,11 @@
 --[[
-	This file carries the additions Blox made while it was running a copy of Signals,
-	brought back here so there is one implementation rather than two. Each one is
-	marked BLOX with the reason it exists, so a reviewer can take them separately.
-
-	1. `peek(value)` reads without subscribing, by passing an explicit `false` scope,
-	   and passes a plain value straight through. Callers that hold "a value or a
-	   getter" do not have to find out which.
-	2. `isGetter` / `isCallable`, so a caller can tell a reactive value from a plain
-	   one. `isGetter` is only a function test: getters are plain functions here, and
-	   an earlier attempt at making them callable tables to be certain cost an
-	   allocation per signal for a question that is rarely load-bearing.
-	3. `createEffect` takes an optional `scheduleWork`, so an effect can defer its
-	   re-evaluation to a scheduler other than this one -- Blox hands it a frame
-	   budget. When one is given the *first* run is deferred too, so mount work is
-	   budgeted alongside every later re-run rather than jumping the queue.
-	4. An effect body may return a cleanup function, run before the next evaluation
-	   and again on disposal. signals-experimental has `onDisposed`, which is a
-	   scope-registration trick rather than the ergonomic form.
-	5. `debugName` on signals, computeds and effects, and an internals flag, so a
-	   profiler or an inspector has something to name.
-	6. `createInternalSource`, a signal whose setter notifies without flushing, for
-	   values a runtime drives itself part-way through a pass of its own.
-	7. Reporting for a read that named no scope. `false` says "do not subscribe" and
-	   is honoured in silence; nothing at all subscribes nothing, which reads
-	   correctly once and then never updates. That is the quietest failure here, so
-	   it is worth being able to ask about it.
+	`peek(value)` reads a getter without subscribing and passes plain values through.
+	`isCallable` accepts functions and callable tables.
+	Effects may use an external scheduler and return a cleanup function.
+	Signals, computeds, and effects accept debug names for profiling.
+	`createInternalSource` notifies without flushing for values updated during a
+	larger reconciliation pass.
+	Scopeless reads can be reported through the configured diagnostic sink.
 
 	Diagnostics reach this file through `setHooks` and `configure` rather than a
 	direct dependency, so nothing here knows about the runtime using it.
@@ -62,10 +43,10 @@ type source = (observer?, true?) -> number
 type observer = () -> ()
 
 --[[
-	BLOX 5 and 7: diagnostics, supplied by the host rather than required.
+	Diagnostics supplied by the host rather than required.
 
 	Bound as upvalues rather than read out of a table per call, so a hook that is not
-	installed costs the same as it did when it was a constant.
+	installed has no per-call lookup cost.
 ]]
 local function noop() end
 local function noopReturningZero()
@@ -85,7 +66,7 @@ export type Config = {
 	-- Attaches a `debugState` table to each signal and computed, for an inspector to
 	-- read. Off by default: it is an allocation per source.
 	showInternals: boolean?,
-	-- Reports a read that named no scope. See BLOX 7.
+	-- Reports a read that named no scope.
 	warnScopelessReads: boolean?,
 	-- Where a report goes. Defaults to `warn`.
 	report: ((message: string) -> ())?,
@@ -136,12 +117,6 @@ local function defaultEquals<T>(current: T, incoming: T)
 	return current == incoming
 end
 
--- BLOX 2: getters are plain functions, so this cannot tell a getter from any other
--- function. Callers rely on position rather than on the value's shape.
-local function isGetter(value: any): boolean
-	return type(value) == "function"
-end
-
 local function isCallable(value: any): boolean
 	if type(value) == "function" then
 		return true
@@ -153,7 +128,7 @@ local function isCallable(value: any): boolean
 	return false
 end
 
--- BLOX 1: reads without subscribing, whatever it is handed.
+-- Reads a getter without subscribing and passes a plain value through.
 local function peek(value: any): any
 	if type(value) == "function" then
 		return value(false)
@@ -162,7 +137,7 @@ local function peek(value: any): any
 end
 
 --[[
-	BLOX 7: reports a read that named no scope.
+	Reports a read that named no scope.
 
 	Deduplicated by call site, because the reads that matter are the ones inside an
 	effect that runs constantly. `debug.traceback` is far too expensive to pay per
@@ -228,11 +203,7 @@ local function createSignal<T>(
 	local function ensureInitialized()
 		if not isInitialized then
 			isInitialized = true
-			-- BLOX 1: a getter as the initial value is peeked rather than stored, so
-			-- `createSignal(someGetter)` seeds from it instead of nesting it.
-			value = if isGetter(initial)
-				then peek(initial)
-				else if typeof(initial) == "function" then callUserSpace(initial :: any) else initial
+			value = if typeof(initial) == "function" then callUserSpace(initial :: any) else initial
 			version = os.clock()
 			observers = createWeakSet({})
 			if debugState then
@@ -283,13 +254,14 @@ local function createSignal<T>(
 		return value
 	end
 
+	--[[
+		Every function reaching a setter is a functional update, called with the
+		stored value. To store a function as the value, return it from an updater:
+		`set(function() return callback end)`.
+	]]
 	local function setter(update: update<any>)
 		ensureInitialized()
-		-- BLOX 1: a getter as the update is peeked, matching the initial-value case.
-		local newValue = if isGetter(update)
-			then peek(update)
-			elseif typeof(update) == "function" then callUserSpace(update :: any, value)
-			else update
+		local newValue = if typeof(update) == "function" then callUserSpace(update :: any, value) else update
 		if not callUserSpace(isEqual, value, newValue) then
 			onSignalSet()
 			value = newValue
@@ -307,7 +279,7 @@ local function createSignal<T>(
 end
 
 --[=[
-	BLOX 6: a signal whose setter notifies without flushing.
+	A signal whose setter notifies without flushing.
 
 	A runtime drives these itself -- a list row's index part-way through a reconcile --
 	where flushing would run effects against a half-updated list. The notification
@@ -363,8 +335,7 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?, deb
 	local cachedVersion = 0
 	local absoluteVersion = 0
 
-	-- BLOX 5: naming a computed is the common reason to pass a second argument, so a
-	-- string in the equals position is taken as the debug name.
+	-- A string in the equals position is treated as the debug name.
 	if typeof(equals) == "string" then
 		debugName = equals :: any
 		equals = nil
@@ -498,7 +469,6 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 
 	local observer: observer
 
-	-- BLOX 4: cleanup returned from the body.
 	local function runCleanup()
 		if cleanup then
 			local fn = cleanup
@@ -569,7 +539,6 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 	observer = function()
 		if not isDisposed and not isScheduled then
 			isScheduled = true
-			-- BLOX 3: an external scheduler when one was given.
 			if scheduleWork then
 				scheduleWork(processNotification)
 			else
@@ -578,8 +547,7 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 		end
 	end
 
-	-- BLOX 3: with a scheduler the first run is deferred too, so mount work lands in
-	-- the same budget as every later re-run.
+	-- With an external scheduler, the first run is deferred as well.
 	if scheduleWork then
 		isScheduled = true
 		scheduleWork(processNotification)
@@ -599,7 +567,6 @@ return {
 
 	createInternalSource = createInternalSource,
 	isCallable = isCallable,
-	isGetter = isGetter,
 	peek = peek,
 
 	-- Re-exported so a consumer that batches does not need a second dependency just

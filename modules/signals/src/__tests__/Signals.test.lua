@@ -725,9 +725,11 @@ end)
 
 it("should lazily initialize signals with function values", function()
 	local initCount = 0
+	local argumentCount = -1
 
-	local get, set = createSignal(function()
+	local get, set = createSignal(function(...)
 		initCount += 1
+		argumentCount = select("#", ...)
 		return 100
 	end)
 
@@ -736,6 +738,7 @@ it("should lazily initialize signals with function values", function()
 	local value = get(false)
 	expect(value).toEqual(100)
 	expect(initCount).toEqual(1) -- initialized
+	expect(argumentCount).toEqual(0)
 
 	get(false)
 	expect(initCount).toEqual(1) -- should only init once
@@ -743,6 +746,19 @@ it("should lazily initialize signals with function values", function()
 	set(200)
 	expect(get(false)).toEqual(200)
 	expect(initCount).toEqual(1)
+end)
+
+it("should pass the stored value to a functional update", function()
+	local get, set = createSignal(41)
+	local received: number? = nil
+
+	set(function(previous)
+		received = previous
+		return previous + 1
+	end)
+
+	expect(received).toEqual(41)
+	expect(get(false)).toEqual(42)
 end)
 
 it("should handle table values with reference equality", function()

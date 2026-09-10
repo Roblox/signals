@@ -5,7 +5,11 @@ export type setter<T> = Signals.setter<T>
 export type update<T> = Signals.update<T>
 export type equals<T> = Signals.equals<T>
 export type dispose = Signals.dispose
+export type work = Signals.work
 
 export type scope = Signals.scope
+
+export type Hooks = Signals.Hooks
+export type Config = Signals.Config
 
 return Signals

@@ -136,6 +136,28 @@ it("should support batching scheduled work", function()
 	})
 end)
 
+it("should run work that is scheduled while draining", function()
+	local order = {}
+
+	batch(function()
+		schedule(function()
+			table.insert(order, "first")
+			-- Appends to the queue that is being drained right now. An effect
+			-- scheduling another effect is the ordinary case, so this has to be
+			-- picked up by the drain already in progress rather than left for a
+			-- batch that may never come.
+			schedule(function()
+				table.insert(order, "second")
+				schedule(function()
+					table.insert(order, "third")
+				end)
+			end)
+		end)
+	end)
+
+	expect(order).toEqual({ "first", "second", "third" })
+end)
+
 if SignalsSchedulerResetStateAfterErrors then
 	it("should drain scheduled work after batched work errors", function()
 		local counters = {

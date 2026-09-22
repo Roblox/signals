@@ -870,3 +870,25 @@ it("should handle nested batch calls", function()
 
 	dispose()
 end)
+
+it("should report a read that names no scope, but not a deliberate untracked one", function()
+	local reported = {}
+
+	Signals.configure({
+		warnScopelessReads = true,
+		report = function(message)
+			table.insert(reported, message)
+		end,
+	})
+
+	local get = createSignal(1)
+
+	get(false) -- deliberate, so nothing is reported
+	expect(#reported).toEqual(0)
+
+	get(nil)
+	expect(#reported).toEqual(1)
+	expect(string.find(reported[1], "without naming a scope", 1, true) ~= nil).toEqual(true)
+
+	Signals.configure({ warnScopelessReads = false, report = warn })
+end)

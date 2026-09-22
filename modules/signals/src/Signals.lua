@@ -135,6 +135,55 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (get
 	return getter, setter
 end
 
+--[=[
+	A signal whose setter notifies without flushing.
+
+	A host drives these itself -- a list row's index part-way through a reconcile,
+	say -- where flushing would run effects against a half-updated list. The
+	notification still lands; it is drained by whatever batch encloses the pass.
+]=]
+local function createInternalSource(initial: any): (getter<any>, setter<any>)
+	local version = os.clock()
+	local value = initial
+	local observers: set<observer> = createWeakSet({})
+
+	local function source(childObserver: observer?, delete: true?)
+		if childObserver ~= nil then
+			if delete then
+				observers[childObserver] = nil
+			else
+				observers[childObserver] = true
+			end
+			return 0
+		else
+			return version
+		end
+	end
+
+	local function getter(requestor: scope | false | nil): any
+		if requestor then
+			local childObserver = requestor(source)
+			if childObserver ~= nil then
+				observers[childObserver] = true
+			end
+		end
+		return value
+	end
+
+	local function setter(newValue: any)
+		if value ~= newValue then
+			value = newValue
+			version = os.clock()
+			for childObserver in observers do
+				childObserver()
+			end
+			table.clear(observers)
+		end
+	end
+
+	return getter :: any, setter :: any
+end
+
 local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): getter<T>
 	local isInitialized = false
 	local isStale = false
@@ -300,4 +349,5 @@ return {
 	createSignal = createSignal,
 	createComputed = createComputed,
 	createEffect = createEffect,
+	createInternalSource = createInternalSource,
 }

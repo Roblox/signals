@@ -10,6 +10,7 @@ export type setter<T> = (update<T>) -> ()
 export type update<T> = ((previous: T) -> T) | T
 export type equals<T> = (current: T, incoming: T) -> boolean
 export type dispose = () -> ()
+export type work = () -> ()
 
 -- The "scope" function is used by a source (signals and computeds) to register itself with
 -- an observer (computeds and effects) when the source is read
@@ -237,14 +238,37 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 	return getter
 end
 
-local function createEffect(effect: (scope) -> ()): dispose
+--[[
+	An effect may return a cleanup function, which runs before the next run of the
+	body and once more on dispose.
+
+	`scheduleWork` hands the timing of every run, including the first, to a host
+	that has its own queue to order this against. Without it the scheduler above
+	is used and the first run is immediate, as before.
+]]
+local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?): dispose
+	local isInitialized = false
 	local isScheduled = false
 	local isDisposed = false
 	local version = 0
+	local cleanup: (() -> ())? = nil
 
 	local sources: set<source> = {}
 
 	local observer: observer
+
+	local function runCleanup()
+		if cleanup then
+			local fn = cleanup
+			cleanup = nil
+			-- Swallowed so a failing cleanup cannot stop the effect re-running, but
+			-- reported, because it is otherwise a completely silent failure.
+			local ok, err = pcall(fn)
+			if not ok then
+				warn(`Signals: effect cleanup errored: {err}`)
+			end
+		end
+	end
 
 	local function disconnectSources()
 		for source in sources do
@@ -255,6 +279,7 @@ local function createEffect(effect: (scope) -> ()): dispose
 
 	local function dispose()
 		isDisposed = true
+		runCleanup()
 		disconnectSources()
 	end
 
@@ -263,35 +288,60 @@ local function createEffect(effect: (scope) -> ()): dispose
 		return observer
 	end
 
+	local function runEffect()
+		runCleanup()
+		local result = callUserSpaceWithScope(effect, scope)
+		if typeof(result) == "function" then
+			cleanup = result
+		end
+	end
+
 	local function processNotification()
-		if not isDisposed then
-			isScheduled = false
-			for parentSource in sources do
-				local newVersion = parentSource()
-				if newVersion > version then
-					disconnectSources()
-					callUserSpaceWithScope(effect, scope)
-					version = os.clock()
-					return
-				end
+		if isDisposed then
+			return
+		end
+		isScheduled = false
+		-- A deferred first run has no sources to compare versions against yet.
+		if not isInitialized then
+			runEffect()
+			version = os.clock()
+			isInitialized = true
+			return
+		end
+		for parentSource in sources do
+			local newVersion = parentSource()
+			if newVersion > version then
+				disconnectSources()
+				runEffect()
+				version = os.clock()
+				return
 			end
-			for parentSource in sources do
-				parentSource(observer)
-			end
+		end
+		-- Nothing moved, so re-attach and skip the body.
+		for parentSource in sources do
+			parentSource(observer)
 		end
 	end
 
 	function observer()
-		if not isDisposed then
-			if not isScheduled then
-				isScheduled = true
+		if not isDisposed and not isScheduled then
+			isScheduled = true
+			if scheduleWork then
+				scheduleWork(processNotification)
+			else
 				schedule(processNotification)
 			end
 		end
 	end
 
-	callUserSpaceWithScope(effect, scope)
-	version = os.clock()
+	if scheduleWork then
+		isScheduled = true
+		scheduleWork(processNotification)
+	else
+		runEffect()
+		version = os.clock()
+		isInitialized = true
+	end
 
 	return dispose
 end

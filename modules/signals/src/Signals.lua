@@ -1,5 +1,6 @@
 local Packages = script.Parent.Parent
 local SignalsScheduler = require(Packages.SignalsScheduler)
+local batch = SignalsScheduler.batch
 local flush = SignalsScheduler.flush
 local schedule = SignalsScheduler.schedule
 
@@ -300,4 +301,10 @@ return {
 	createSignal = createSignal,
 	createComputed = createComputed,
 	createEffect = createEffect,
+
+	-- Re-exported so a consumer that batches does not need a second dependency just
+	-- to reach the scheduler this file already requires.
+	batch = batch,
+	flush = flush,
+	schedule = schedule,
 }

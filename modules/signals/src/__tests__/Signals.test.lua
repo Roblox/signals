@@ -870,3 +870,107 @@ it("should handle nested batch calls", function()
 
 	dispose()
 end)
+
+it("should run a returned cleanup before the next run of the effect", function()
+	local get, set = createSignal(0)
+	local order = {}
+
+	local dispose = createEffect(function(scope)
+		local value = get(scope)
+		table.insert(order, `run {value}`)
+		return function()
+			table.insert(order, `cleanup {value}`)
+		end
+	end)
+
+	task.wait()
+	expect(order).toEqual({ "run 0" }) -- nothing to clean up yet
+
+	set(1)
+
+	task.wait()
+	expect(order).toEqual({ "run 0", "cleanup 0", "run 1" })
+
+	dispose()
+end)
+
+it("should run the last cleanup on dispose", function()
+	local cleanupCount = 0
+
+	local dispose = createEffect(function(_scope)
+		return function()
+			cleanupCount += 1
+		end
+	end)
+
+	task.wait()
+	expect(cleanupCount).toEqual(0)
+
+	dispose()
+	expect(cleanupCount).toEqual(1)
+
+	dispose()
+	expect(cleanupCount).toEqual(1) -- already cleaned up
+end)
+
+it("should keep running after a cleanup errors", function()
+	local get, set = createSignal(0)
+	local runCount = 0
+
+	local dispose = createEffect(function(scope)
+		get(scope)
+		runCount += 1
+		return function()
+			error("cleanup blew up")
+		end
+	end)
+
+	task.wait()
+	expect(runCount).toEqual(1)
+
+	set(1)
+
+	task.wait()
+	expect(runCount).toEqual(2)
+
+	dispose()
+end)
+
+it("should defer every run, including the first, to an external scheduler", function()
+	local get, set = createSignal(0)
+	local queued = {}
+	local runCount = 0
+
+	local function scheduleWork(work)
+		table.insert(queued, work)
+	end
+
+	local function drain()
+		local pending = queued
+		queued = {}
+		for _, work in pending do
+			work()
+		end
+	end
+
+	local dispose = createEffect(function(scope)
+		get(scope)
+		runCount += 1
+	end, scheduleWork)
+
+	task.wait()
+	expect(runCount).toEqual(0) -- the first run waits for the host too
+	expect(#queued).toEqual(1)
+
+	drain()
+	expect(runCount).toEqual(1)
+
+	set(1)
+	task.wait()
+	expect(runCount).toEqual(1) -- still nothing until the host drains
+
+	drain()
+	expect(runCount).toEqual(2)
+
+	dispose()
+end)

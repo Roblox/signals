@@ -104,7 +104,11 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (get
 	local function connectToScope(requestor: scope | false | nil)
 		if requestor then
 			local childObserver = requestor(source)
-			observers[childObserver] = true
+			-- A scope may decline to observe, and a nil key would raise here instead
+			-- of at the scope that returned it.
+			if childObserver ~= nil then
+				observers[childObserver] = true
+			end
 		end
 	end
 
@@ -223,7 +227,11 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 	local function connectToScope(requestor: scope | false | nil)
 		if requestor then
 			local childObserver = requestor(source)
-			observers[childObserver] = true
+			-- A scope may decline to observe, and a nil key would raise here instead
+			-- of at the scope that returned it.
+			if childObserver ~= nil then
+				observers[childObserver] = true
+			end
 		end
 	end
 

@@ -18,11 +18,8 @@ The repository is a [Wally](https://wally.run/) workspace. Source code lives und
 modules/
   signals/              # Core reactive primitives
   signals-scheduler/    # Batch/flush micro-scheduler
-  signals-react/        # React integration hooks
-  signals-roblox/       # Roblox-specific bindings
   signals-experimental/ # Experimental utilities
   resources/            # Lifetime and scoping primitives
-  resources-react/      # React hook for resources
 ```
 
 Please only make modifications in the directories above. You may notice there are duplicate config files for some of our tooling (e.g. foreman.toml vs foreman-internal.toml, rotriever.toml vs wally.toml, default/test.project.json vs default.rbxp) as well as some internal specific files (e.g. .lestrc). Repo maintainers use these internal specific files to run the same tests on different tooling. The `default.project.json` describes the published Wally package layout; `test.project.json` is the development place used for local testing and CI. If you want to add or modify any of the repo tooling or packages (e.g. updating foreman.toml or wally.toml), please open an issue and reach out to the maintainers for assistance.
@@ -42,8 +39,6 @@ Contributions should follow existing code styling. In support of this, we use th
 
 ```bash
 rojo sourcemap test.project.json -o sourcemap.json
-wally-package-types --sourcemap sourcemap.json Packages
-wally-package-types --sourcemap sourcemap.json DevPackages
 curl -sO https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/master/scripts/globalTypes.d.luau
 luau-lsp analyze --defs globalTypes.d.luau --sourcemap sourcemap.json modules
 ```
@@ -103,8 +98,8 @@ rocale-cli run \
 	- Create a new API key with write access to your experience for `luau-execution-sessions` and `universe-places`
 5. On your fork, add these secrets
    - `ROBLOX_API_KEY`
-   - `TEST_PLACE_ID`
-   - `TEST_UNIVERSE_ID`
+   - `ROBLOX_PLACE_ID`
+   - `ROBLOX_UNIVERSE_ID`
 
 
 ## Pull Request Guidelines

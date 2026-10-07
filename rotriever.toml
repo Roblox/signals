@@ -7,8 +7,6 @@ registry_index = true
 path_mode = "rbxp"
 
 [workspace.dependencies]
-Jest = "3.12.0"
-JestBenchmark = "3.12.0"
-JestGlobals = "3.12.0"
-React = "17.1.19"
-ReactRoblox = "17.1.19"
+Jest = "3.20.0"
+JestBenchmark = "3.20.0"
+JestGlobals = "3.20.0"

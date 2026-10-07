@@ -121,6 +121,11 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (get
 		return value
 	end
 
+	--[[
+		Every function reaching a setter is a functional update, called with the
+		stored value. To store a function as the value, return it from an updater:
+		`set(function() return callback end)`.
+	]]
 	local function setter(update: update<T>)
 		ensureInitialized()
 		local newValue = if typeof(update) == "function" then callUserSpace(update, value) else update

@@ -126,7 +126,7 @@ end
 local validationEnabled = _G.__SIGNALS_VALIDATION_ENABLED__ or _G.__DEV__
 local callUserSpaceWithScope = if validationEnabled then callUserSpaceWithScopeValidation else callUserSpace :: never
 
-local function evaluateWithScope<T>(fn: (scope) -> T, scopeValue: scope): T
+local function evaluateWithScope(fn: (scope) -> any, scopeValue: scope): any
 	if not warnScopelessReads then
 		return callUserSpaceWithScope(fn, scopeValue)
 	end

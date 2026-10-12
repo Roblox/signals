@@ -45,22 +45,9 @@ local function isCallable(value: any): boolean
 	end
 	if type(value) == "table" then
 		local mt = getmetatable(value)
-		return mt ~= nil and typeof(mt.__call) == "function"
+		return type(mt) == "table" and typeof(mt.__call) == "function"
 	end
 	return false
-end
-
---[[
-	Reads a getter without subscribing, and passes a plain value straight through.
-
-	Callers handling something that may or may not be reactive would otherwise
-	branch on that at every read.
-]]
-local function peek(value: any): any
-	if type(value) == "function" then
-		return value(false)
-	end
-	return value
 end
 
 local function handleError(ok: boolean, ...)
@@ -328,5 +315,4 @@ return {
 	createEffect = createEffect,
 
 	isCallable = isCallable,
-	peek = peek,
 }

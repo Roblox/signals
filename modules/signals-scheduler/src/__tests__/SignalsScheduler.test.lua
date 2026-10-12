@@ -46,7 +46,7 @@ it("resets scheduler state when a continuation hook errors", function()
 	SignalsScheduler.setHooks({
 		onContinuations = function()
 			error("hook failed")
-	end,
+		end,
 	})
 	expect(function()
 		batch(function()

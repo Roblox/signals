@@ -11,11 +11,7 @@ repository = "https://github.com/Roblox/signals"
 [place]
 shared-packages = "game.ReplicatedStorage.Packages"
 
-[dependencies]
-React = "jsdotlua/react@17.2.1"
-
 [dev-dependencies]
-Jest = "jsdotlua/jest@3.10.0"
-JestBenchmark = "jsdotlua/jest-benchmark@3.10.0"
-JestGlobals = "jsdotlua/jest-globals@3.10.0"
-ReactRoblox = "jsdotlua/react-roblox@17.2.1"
+Jest = "roblox/jest@3.20.0"
+JestBenchmark = "roblox/jest-benchmark@3.20.0"
+JestGlobals = "roblox/jest-globals@3.20.0"

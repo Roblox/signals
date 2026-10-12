@@ -67,8 +67,10 @@ local function batch(fn: work)
 
 		if SignalsSchedulerResetStateAfterErrors then
 			local ok, err: any = xpcall(fn, debug.traceback)
-			onContinuations(#continuations)
 			local continuationsOk, continuationsErr: any = runContinuations()
+			local hookOk, hookErr: any = xpcall(function()
+				onContinuations(#continuations)
+			end, debug.traceback)
 
 			table.clear(continuations)
 			isContinuing = false
@@ -79,13 +81,21 @@ local function batch(fn: work)
 			if not continuationsOk then
 				error(continuationsErr, 0)
 			end
+			if not hookOk then
+				error(hookErr, 0)
+			end
 		else
 			fn()
-			onContinuations(#continuations)
 			runWork()
+			local hookOk, hookErr: any = xpcall(function()
+				onContinuations(#continuations)
+			end, debug.traceback)
 
 			table.clear(continuations)
 			isContinuing = false
+			if not hookOk then
+				error(hookErr, 0)
+			end
 		end
 	else
 		fn()

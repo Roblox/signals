@@ -13,6 +13,57 @@ local batch = SignalsScheduler.batch
 local flush = SignalsScheduler.flush
 local schedule = SignalsScheduler.schedule
 
+it("reports one outer batch and all continuations drained in that batch", function()
+	local batches = 0
+	local counts = {}
+	SignalsScheduler.setHooks({
+		onBatch = function()
+			batches += 1
+		end,
+		onContinuations = function(count)
+			table.insert(counts, count)
+		end,
+	})
+
+	batch(function()
+		batch(function()
+			schedule(function()
+				schedule(function() end)
+			end)
+		end)
+	end)
+	expect(batches).toEqual(1)
+	expect(counts).toEqual({ 2 })
+
+	-- A flush is an outer batch even when no continuation was queued.
+	flush()
+	expect(batches).toEqual(2)
+	expect(counts).toEqual({ 2, 0 })
+	SignalsScheduler.setHooks(nil)
+end)
+
+it("resets scheduler state when a continuation hook errors", function()
+	SignalsScheduler.setHooks({
+		onContinuations = function()
+			error("hook failed")
+	end,
+	})
+	expect(function()
+		batch(function()
+			schedule(function() end)
+		end)
+	end).toThrow("hook failed")
+	SignalsScheduler.setHooks(nil)
+
+	local ran = false
+	batch(function()
+		schedule(function()
+			ran = true
+		end)
+	end)
+	expect(ran).toEqual(true)
+end)
+
 it("should schedule work without running until flushed", function()
 	local counters = {
 		foo = 0,

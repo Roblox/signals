@@ -1,5 +1,6 @@
 local Packages = script.Parent.Parent
 local SignalsScheduler = require(Packages.SignalsScheduler)
+local SignalsEffectCleanup = require(Packages.SignalsFlags).SignalsEffectCleanup
 local flush = SignalsScheduler.flush
 local schedule = SignalsScheduler.schedule
 
@@ -246,7 +247,7 @@ end
 	that has its own queue to order this against. Without it the scheduler above
 	is used and the first run is immediate, as before.
 ]]
-local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?): dispose
+local function createEffect(effect: (scope) -> (() -> ())?, scheduleWork: ((work) -> ())?): dispose
 	local isInitialized = false
 	local isScheduled = false
 	local isDisposed = false
@@ -263,7 +264,7 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 			cleanup = nil
 			-- Swallowed so a failing cleanup cannot stop the effect re-running, but
 			-- reported, because it is otherwise a completely silent failure.
-			local ok, err = pcall(fn)
+			local ok, err = xpcall(fn, debug.traceback)
 			if not ok then
 				warn(`Signals: effect cleanup errored: {err}`)
 			end
@@ -291,12 +292,35 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 	local function runEffect()
 		runCleanup()
 		local result = callUserSpaceWithScope(effect, scope)
-		if typeof(result) == "function" then
+		if SignalsEffectCleanup and typeof(result) == "function" then
 			cleanup = result
+			if isDisposed then
+				runCleanup()
+			end
 		end
 	end
 
-	local function processNotification()
+	local processNotification: () -> ()
+
+	-- A host scheduler must defer work until after the current notification pass.
+	-- Running it inline can drop the effect's new subscription when the source
+	-- clears its observer set at the end of that pass.
+	local function enqueueExternal()
+		local returned = false
+		local ok, err = xpcall(function()
+			(scheduleWork :: (work) -> ())(function()
+				assert(returned, "Signals: scheduleWork must defer effect work")
+				processNotification()
+			end)
+		end, debug.traceback)
+		returned = true
+		if not ok then
+			isScheduled = false
+			error(err, 0)
+		end
+	end
+
+	function processNotification()
 		if isDisposed then
 			return
 		end
@@ -327,7 +351,7 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 		if not isDisposed and not isScheduled then
 			isScheduled = true
 			if scheduleWork then
-				scheduleWork(processNotification)
+				enqueueExternal()
 			else
 				schedule(processNotification)
 			end
@@ -336,7 +360,7 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 
 	if scheduleWork then
 		isScheduled = true
-		scheduleWork(processNotification)
+		enqueueExternal()
 	else
 		runEffect()
 		version = os.clock()

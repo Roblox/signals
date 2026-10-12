@@ -10,7 +10,14 @@ end, function()
 	return true
 end)
 
+local _, SignalsEffectCleanup = xpcall(function()
+	return game:DefineFastFlag("SignalsEffectCleanup", false)
+end, function()
+	return true
+end)
+
 return {
 	SignalsReactUseMutableSource = SignalsReactUseMutableSource,
 	SignalsSchedulerResetStateAfterErrors = SignalsSchedulerResetStateAfterErrors,
+	SignalsEffectCleanup = SignalsEffectCleanup,
 }

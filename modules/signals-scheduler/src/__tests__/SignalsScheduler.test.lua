@@ -136,7 +136,7 @@ it("should support batching scheduled work", function()
 	})
 end)
 
-it("should run work that is scheduled while draining", function()
+it("keeps draining work that is scheduled by another continuation", function()
 	local order = {}
 
 	batch(function()
@@ -144,8 +144,8 @@ it("should run work that is scheduled while draining", function()
 			table.insert(order, "first")
 			-- Appends to the queue that is being drained right now. An effect
 			-- scheduling another effect is the ordinary case, so this has to be
-			-- picked up by the drain already in progress rather than left for a
-			-- batch that may never come.
+			-- picked up by the drain already in progress. This checks the indexed
+			-- traversal contract; generalised iteration also passes this case today.
 			schedule(function()
 				table.insert(order, "second")
 				schedule(function()

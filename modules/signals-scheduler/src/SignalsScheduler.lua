@@ -12,10 +12,9 @@ local continuations: { work } = {}
 	Both drains below are indexed rather than iterated.
 
 	Work run during a drain can call `schedule`, which appends to the very table being
-	walked. Generalised iteration is not guaranteed to reach entries added after it
-	started, so an effect scheduled by another effect could be dropped for the rest of
-	the batch -- and `table.clear` below would then discard it entirely. Indexing by
-	position re-reads the length each time round and picks those up.
+	walked. Indexed traversal explicitly re-reads its length each time round. This
+	keeps the append behavior clear without relying on generalised iteration over
+	a table that changes during the loop.
 ]]
 local function runWork(fn: work)
 	fn()

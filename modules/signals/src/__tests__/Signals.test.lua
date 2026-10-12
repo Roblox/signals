@@ -15,6 +15,39 @@ local createEffect = Signals.createEffect
 
 local RUNS = 10
 
+it("allows a scope to decline observing a signal", function()
+	local get, set = createSignal(1)
+	local observations = 0
+	local scope = function(_source)
+		observations += 1
+		return nil
+	end
+
+	expect(get(scope)).toEqual(1)
+	expect(observations).toEqual(1)
+	set(2)
+	expect(get(scope)).toEqual(2)
+	expect(observations).toEqual(2)
+end)
+
+it("allows a scope to decline observing a computed", function()
+	local get, set = createSignal(1)
+	local computed = createComputed(function(scope)
+		return get(scope) * 2
+	end)
+	local observations = 0
+	local scope = function(_source)
+		observations += 1
+		return nil
+	end
+
+	expect(computed(scope)).toEqual(2)
+	expect(observations).toEqual(1)
+	set(2)
+	expect(computed(scope)).toEqual(4)
+	expect(observations).toEqual(2)
+end)
+
 it("should execute an effect only once with no dependencies", function()
 	local count = 0
 

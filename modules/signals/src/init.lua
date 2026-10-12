@@ -9,4 +9,6 @@ export type work = Signals.work
 
 export type scope = Signals.scope
 
+export type Hooks = Signals.Hooks
+
 return Signals

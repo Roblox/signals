@@ -33,8 +33,8 @@ type observer = () -> ()
 	it should cost anything when it has not been asked for.
 ]]
 export type Config = {
-	-- Attaches a `debugState` table to each signal and computed, for an inspector to
-	-- read. Off by default: it is an allocation per source.
+	-- Records state for signals and computeds created while enabled. Inspect it
+	-- with `getDebugState`. Off by default: it is an allocation per source.
 	showInternals: boolean?,
 	-- Reports a read that named no scope.
 	warnScopelessReads: boolean?,
@@ -44,6 +44,12 @@ export type Config = {
 
 local showInternals = false
 local warnScopelessReads = false
+local activeEvaluationDepth = 0
+local debugStates: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
+
+local function getDebugState(getter: any): any?
+	return debugStates[getter]
+end
 local report: (message: string) -> () = function(message: string)
 	warn(message)
 end
@@ -73,17 +79,17 @@ end
 --[[
 	Reports a read that named no scope, so nothing re-runs when the value changes.
 
-	Deduplicated by call site, because the reads worth finding are the ones inside
-	an effect that runs constantly. `debug.traceback` is far too expensive to pay
-	per read, which is why none of this happens unless it has been asked for.
+	Deduplicated by source line, because the reads worth finding are the ones
+	inside an evaluation that runs repeatedly.
 ]]
 local reportedScopelessReads: { [string]: true } = {}
 
 local function reportScopelessRead()
-	local where = debug.traceback("", 3)
+	local source, line = debug.info(4, "sl")
+	local where = `{tostring(source)}:{tostring(line)}`
 	if reportedScopelessReads[where] == nil then
 		reportedScopelessReads[where] = true
-		report(`Signals: a source was read without naming a scope, so nothing re-runs when it changes:{where}`)
+		report(`Signals: a source was read without naming a scope at {where}, so nothing re-runs when it changes`)
 	end
 end
 
@@ -119,6 +125,21 @@ end
 
 local validationEnabled = _G.__SIGNALS_VALIDATION_ENABLED__ or _G.__DEV__
 local callUserSpaceWithScope = if validationEnabled then callUserSpaceWithScopeValidation else callUserSpace :: never
+
+local function evaluateWithScope<T>(fn: (scope) -> T, scopeValue: scope): T
+	if not warnScopelessReads then
+		return callUserSpaceWithScope(fn, scopeValue)
+	end
+	activeEvaluationDepth += 1
+	local ok, result = xpcall(function()
+		return callUserSpaceWithScope(fn, scopeValue)
+	end, debug.traceback)
+	activeEvaluationDepth -= 1
+	if not ok then
+		error(result, 0)
+	end
+	return result
+end
 
 local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?, debugName: string?): (getter<T>, setter<T>)
 	local isInitialized = false
@@ -161,7 +182,7 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?, debug
 		if requestor then
 			local childObserver = requestor(source)
 			observers[childObserver] = true
-		elseif requestor == nil and warnScopelessReads then
+		elseif requestor == nil and warnScopelessReads and activeEvaluationDepth > 0 then
 			-- `false` is a deliberate untracked read. Omitting the argument entirely
 			-- is the mistake worth reporting.
 			reportScopelessRead()
@@ -196,6 +217,9 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?, debug
 		end
 	end
 
+	if debugState then
+		debugStates[getter] = debugState
+	end
 	return getter, setter
 end
 
@@ -204,13 +228,6 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?, deb
 	local isStale = false
 	local cachedVersion = 0
 	local absoluteVersion = 0
-
-	-- Naming a computed is far more common than giving it a comparison, so a string
-	-- in the second position is taken as the name.
-	if typeof(equals) == "string" then
-		debugName = equals :: any
-		equals = nil
-	end
 
 	local value: T
 	local sources: set<source>
@@ -243,7 +260,7 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?, deb
 			isInitialized = true
 			observers = createWeakSet({})
 			sources = {}
-			value = callUserSpaceWithScope(computed, scope)
+			value = evaluateWithScope(computed, scope)
 			absoluteVersion = os.clock()
 			cachedVersion = absoluteVersion
 			if debugState then
@@ -267,7 +284,7 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?, deb
 				local newVersion = parentSource()
 				if newVersion > absoluteVersion then
 					disconnectSources()
-					local newValue = callUserSpaceWithScope(computed, scope)
+					local newValue = evaluateWithScope(computed, scope)
 					absoluteVersion = os.clock()
 					if not callUserSpace(isEqual, value, newValue) then
 						value = newValue
@@ -304,7 +321,7 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?, deb
 		if requestor then
 			local childObserver = requestor(source)
 			observers[childObserver] = true
-		elseif requestor == nil and warnScopelessReads then
+		elseif requestor == nil and warnScopelessReads and activeEvaluationDepth > 0 then
 			-- `false` is a deliberate untracked read. Omitting the argument entirely
 			-- is the mistake worth reporting.
 			reportScopelessRead()
@@ -318,6 +335,9 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?, deb
 		return value
 	end
 
+	if debugState then
+		debugStates[getter] = debugState
+	end
 	return getter
 end
 
@@ -354,7 +374,7 @@ local function createEffect(effect: (scope) -> ()): dispose
 				local newVersion = parentSource()
 				if newVersion > version then
 					disconnectSources()
-					callUserSpaceWithScope(effect, scope)
+					evaluateWithScope(effect, scope)
 					version = os.clock()
 					return
 				end
@@ -374,7 +394,7 @@ local function createEffect(effect: (scope) -> ()): dispose
 		end
 	end
 
-	callUserSpaceWithScope(effect, scope)
+	evaluateWithScope(effect, scope)
 	version = os.clock()
 
 	return dispose
@@ -386,4 +406,5 @@ return {
 	createEffect = createEffect,
 
 	configure = configure,
+	getDebugState = getDebugState,
 }

@@ -871,7 +871,7 @@ it("should handle nested batch calls", function()
 	dispose()
 end)
 
-it("should report a read that names no scope, but not a deliberate untracked one", function()
+it("reports a scopeless read in an effect once per call site", function()
 	local reported = {}
 
 	Signals.configure({
@@ -882,13 +882,42 @@ it("should report a read that names no scope, but not a deliberate untracked one
 	})
 
 	local get = createSignal(1)
+	local getTick, setTick = createSignal(0)
 
 	get(false) -- deliberate, so nothing is reported
 	expect(#reported).toEqual(0)
 
-	get(nil)
+	get(nil) -- outside a reactive body, so no report
+	expect(#reported).toEqual(0)
+
+	local dispose = createEffect(function(scope)
+		getTick(scope)
+		get(nil)
+	end)
 	expect(#reported).toEqual(1)
 	expect(string.find(reported[1], "without naming a scope", 1, true) ~= nil).toEqual(true)
+	setTick(1)
+	expect(#reported).toEqual(1)
+	dispose()
 
 	Signals.configure({ warnScopelessReads = false, report = warn })
+end)
+
+it("exposes requested signal and computed debug state", function()
+	Signals.configure({ showInternals = true })
+	local get, set = createSignal(1, nil, "source")
+	local computed = createComputed(function(scope)
+		return get(scope) * 2
+	end, nil, "derived")
+	expect(Signals.getDebugState(get).name).toEqual("source")
+	expect(Signals.getDebugState(computed).name).toEqual("derived")
+	expect(get(false)).toEqual(1)
+	expect(computed(false)).toEqual(2)
+	set(2)
+	expect(computed(false)).toEqual(4)
+	expect(Signals.getDebugState(get).value).toEqual(2)
+	expect(Signals.getDebugState(computed).value).toEqual(4)
+	Signals.configure({ showInternals = false })
+	local plain = createSignal(0)
+	expect(Signals.getDebugState(plain)).toEqual(nil)
 end)

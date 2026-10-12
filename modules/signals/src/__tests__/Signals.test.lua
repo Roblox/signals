@@ -13,6 +13,65 @@ local createSignal = Signals.createSignal
 local createComputed = Signals.createComputed
 local createEffect = Signals.createEffect
 
+it("pairs profiling hooks when a computed or effect errors", function()
+	local events = {}
+	Signals.setHooks({
+		beginComputedEval = function()
+			table.insert(events, "computed begin")
+			return 1
+		end,
+		endComputedEval = function(startedAt)
+			expect(startedAt).toEqual(1)
+			table.insert(events, "computed end")
+		end,
+		beginEffectRun = function()
+			table.insert(events, "effect begin")
+			return 2
+		end,
+		endEffectRun = function(startedAt, name)
+			expect(startedAt).toEqual(2)
+			expect(name).toEqual("failing effect")
+			table.insert(events, "effect end")
+		end,
+	})
+	local computed = createComputed(function(_scope)
+		error("computed failed")
+	end)
+	expect(function()
+		computed(false)
+	end).toThrow("computed failed")
+	expect(function()
+		createEffect(function(_scope)
+			error("effect failed")
+		end, nil, "failing effect")
+	end).toThrow("effect failed")
+	expect(events).toEqual({ "computed begin", "computed end", "effect begin", "effect end" })
+	Signals.setHooks(nil)
+end)
+
+it("reports signal sets and the number of notified observers", function()
+	local setCount = 0
+	local notified = {}
+	Signals.setHooks({
+		onSignalSet = function()
+			setCount += 1
+		end,
+		onSignalNotify = function(count)
+			table.insert(notified, count)
+		end,
+	})
+	local get, set = createSignal(0)
+	local dispose = createEffect(function(scope)
+		get(scope)
+	end)
+	set(1)
+	expect(setCount).toEqual(1)
+	expect(notified).toEqual({ 1 })
+	dispose()
+	Signals.setHooks(nil)
+end)
+local SignalsEffectCleanup = require(Packages.SignalsFlags).SignalsEffectCleanup
+
 local RUNS = 10
 
 it("should execute an effect only once with no dependencies", function()
@@ -871,69 +930,106 @@ it("should handle nested batch calls", function()
 	dispose()
 end)
 
-it("should run a returned cleanup before the next run of the effect", function()
-	local get, set = createSignal(0)
-	local order = {}
+if SignalsEffectCleanup then
+	it("should run a returned cleanup before the next run of the effect", function()
+		local get, set = createSignal(0)
+		local order = {}
 
-	local dispose = createEffect(function(scope)
-		local value = get(scope)
-		table.insert(order, `run {value}`)
-		return function()
-			table.insert(order, `cleanup {value}`)
-		end
+		local dispose = createEffect(function(scope)
+			local value = get(scope)
+			table.insert(order, `run {value}`)
+			return function()
+				table.insert(order, `cleanup {value}`)
+			end
+		end)
+
+		task.wait()
+		expect(order).toEqual({ "run 0" }) -- nothing to clean up yet
+
+		set(1)
+
+		task.wait()
+		expect(order).toEqual({ "run 0", "cleanup 0", "run 1" })
+
+		dispose()
 	end)
 
-	task.wait()
-	expect(order).toEqual({ "run 0" }) -- nothing to clean up yet
+	it("should run the last cleanup on dispose", function()
+		local cleanupCount = 0
 
-	set(1)
+		local dispose = createEffect(function(_scope)
+			return function()
+				cleanupCount += 1
+			end
+		end)
 
-	task.wait()
-	expect(order).toEqual({ "run 0", "cleanup 0", "run 1" })
+		task.wait()
+		expect(cleanupCount).toEqual(0)
 
-	dispose()
-end)
+		dispose()
+		expect(cleanupCount).toEqual(1)
 
-it("should run the last cleanup on dispose", function()
-	local cleanupCount = 0
-
-	local dispose = createEffect(function(_scope)
-		return function()
-			cleanupCount += 1
-		end
+		dispose()
+		expect(cleanupCount).toEqual(1) -- already cleaned up
 	end)
 
-	task.wait()
-	expect(cleanupCount).toEqual(0)
+	it("should keep running after a cleanup errors", function()
+		local get, set = createSignal(0)
+		local runCount = 0
 
-	dispose()
-	expect(cleanupCount).toEqual(1)
+		local dispose = createEffect(function(scope)
+			get(scope)
+			runCount += 1
+			return function()
+				error("cleanup blew up")
+			end
+		end)
 
-	dispose()
-	expect(cleanupCount).toEqual(1) -- already cleaned up
-end)
+		task.wait()
+		expect(runCount).toEqual(1)
 
-it("should keep running after a cleanup errors", function()
-	local get, set = createSignal(0)
-	local runCount = 0
+		set(1)
 
-	local dispose = createEffect(function(scope)
-		get(scope)
-		runCount += 1
-		return function()
-			error("cleanup blew up")
-		end
+		task.wait()
+		expect(runCount).toEqual(2)
+
+		dispose()
 	end)
 
-	task.wait()
-	expect(runCount).toEqual(1)
+	it("runs a returned cleanup when an effect disposes itself", function()
+		local get, set = createSignal(0)
+		local cleanupCount = 0
+		local dispose: () -> ()
+		dispose = createEffect(function(scope)
+			if get(scope) == 1 then
+				dispose()
+			end
+			return function()
+				cleanupCount += 1
+			end
+		end)
+		set(1)
+		expect(cleanupCount).toEqual(2)
+	end)
+else
+	it("ignores returned cleanup functions while the rollout flag is off", function()
+		local called = false
+		local dispose = createEffect(function(_scope)
+			return function()
+				called = true
+			end
+		end)
+		dispose()
+		expect(called).toEqual(false)
+	end)
+end
 
-	set(1)
-
-	task.wait()
-	expect(runCount).toEqual(2)
-
-	dispose()
+it("requires an external scheduler to defer effect work", function()
+	expect(function()
+		createEffect(function(_scope) end, function(work)
+			work()
+		end)
+	end).toThrow("scheduleWork must defer")
 end)
 
 it("should defer every run, including the first, to an external scheduler", function()

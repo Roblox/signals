@@ -1,5 +1,6 @@
 local Packages = script.Parent.Parent
 local SignalsScheduler = require(Packages.SignalsScheduler)
+local SignalsEffectCleanup = require(Packages.SignalsFlags).SignalsEffectCleanup
 local flush = SignalsScheduler.flush
 local schedule = SignalsScheduler.schedule
 
@@ -56,9 +57,11 @@ local beginComputedEval: () -> number = noopReturningZero
 local endComputedEval: (startedAt: number) -> () = noop
 local beginEffectRun: () -> number = noopReturningZero
 local endEffectRun: (startedAt: number, debugName: string?) -> () = noop
+local hooksInstalled = false
 
 local function setHooks(hooks: Hooks?)
 	local given: any = if hooks ~= nil then hooks else {}
+	hooksInstalled = next(given) ~= nil
 	onSignalSet = given.onSignalSet or noop
 	onSignalNotify = given.onSignalNotify or noop
 	beginComputedEval = given.beginComputedEval or noopReturningZero
@@ -152,9 +155,13 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (get
 		local count = 0
 		for childObserver in observers do
 			childObserver()
-			count += 1
+			if hooksInstalled then
+				count += 1
+			end
 		end
-		onSignalNotify(count)
+		if hooksInstalled then
+			onSignalNotify(count)
+		end
 		table.clear(observers)
 	end
 
@@ -168,7 +175,9 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (get
 		ensureInitialized()
 		local newValue = if typeof(update) == "function" then callUserSpace(update, value) else update
 		if not callUserSpace(isEqual, value, newValue) then
-			onSignalSet()
+			if hooksInstalled then
+				onSignalSet()
+			end
 			value = newValue
 			version = os.clock()
 			notifyObservers()
@@ -211,9 +220,17 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 	end
 
 	local function evaluate(): T
+		if not hooksInstalled then
+			return callUserSpaceWithScope(computed, scope)
+		end
 		local startedAt = beginComputedEval()
-		local result = callUserSpaceWithScope(computed, scope)
+		local ok, result = xpcall(function()
+			return callUserSpaceWithScope(computed, scope)
+		end, debug.traceback)
 		endComputedEval(startedAt)
+		if not ok then
+			error(result, 0)
+		end
 		return result
 	end
 
@@ -296,7 +313,7 @@ end
 	that has its own queue to order this against. Without it the scheduler above
 	is used and the first run is immediate, as before.
 ]]
-local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?, debugName: string?): dispose
+local function createEffect(effect: (scope) -> (() -> ())?, scheduleWork: ((work) -> ())?, debugName: string?): dispose
 	local isInitialized = false
 	local isScheduled = false
 	local isDisposed = false
@@ -313,7 +330,7 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 			cleanup = nil
 			-- Swallowed so a failing cleanup cannot stop the effect re-running, but
 			-- reported, because it is otherwise a completely silent failure.
-			local ok, err = pcall(fn)
+			local ok, err = xpcall(fn, debug.traceback)
 			if not ok then
 				warn(`Signals: effect cleanup errored{if debugName then ` in '{debugName}'` else ""}: {err}`)
 			end
@@ -340,15 +357,49 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 
 	local function runEffect()
 		runCleanup()
-		local startedAt = beginEffectRun()
-		local result = callUserSpaceWithScope(effect, scope)
-		endEffectRun(startedAt, debugName)
-		if typeof(result) == "function" then
+		local result
+		if hooksInstalled then
+			local startedAt = beginEffectRun()
+			local ok, value = xpcall(function()
+				return callUserSpaceWithScope(effect, scope)
+			end, debug.traceback)
+			endEffectRun(startedAt, debugName)
+			if not ok then
+				error(value, 0)
+			end
+			result = value
+		else
+			result = callUserSpaceWithScope(effect, scope)
+		end
+		if SignalsEffectCleanup and typeof(result) == "function" then
 			cleanup = result
+			if isDisposed then
+				runCleanup()
+			end
 		end
 	end
 
-	local function processNotification()
+	local processNotification: () -> ()
+
+	-- A host scheduler must defer work until after the current notification pass.
+	-- Running it inline can drop the effect's new subscription when the source
+	-- clears its observer set at the end of that pass.
+	local function enqueueExternal()
+		local returned = false
+		local ok, err = xpcall(function()
+			(scheduleWork :: (work) -> ())(function()
+				assert(returned, "Signals: scheduleWork must defer effect work")
+				processNotification()
+			end)
+		end, debug.traceback)
+		returned = true
+		if not ok then
+			isScheduled = false
+			error(err, 0)
+		end
+	end
+
+	function processNotification()
 		if isDisposed then
 			return
 		end
@@ -379,7 +430,7 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 		if not isDisposed and not isScheduled then
 			isScheduled = true
 			if scheduleWork then
-				scheduleWork(processNotification)
+				enqueueExternal()
 			else
 				schedule(processNotification)
 			end
@@ -388,7 +439,7 @@ local function createEffect(effect: (scope) -> (), scheduleWork: ((work) -> ())?
 
 	if scheduleWork then
 		isScheduled = true
-		scheduleWork(processNotification)
+		enqueueExternal()
 	else
 		runEffect()
 		version = os.clock()

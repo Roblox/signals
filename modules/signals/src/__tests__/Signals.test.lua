@@ -16,7 +16,7 @@ local createEffect = Signals.createEffect
 local RUNS = 10
 
 it("notifies without flushing inside an enclosing batch", function()
-	local get, set = createSignal(0, nil, { flushOnSet = false })
+	local get, set = createSignal(0, nil, nil, { flushOnSet = false })
 	local observed = {}
 	local dispose = createEffect(function(scope)
 		table.insert(observed, get(scope))
@@ -34,7 +34,7 @@ it("notifies without flushing inside an enclosing batch", function()
 end)
 
 it("leaves work pending when a no-flush signal is set outside a batch", function()
-	local get, set = createSignal(0, nil, { flushOnSet = false })
+	local get, set = createSignal(0, nil, nil, { flushOnSet = false })
 	local observed = {}
 	local dispose = createEffect(function(scope)
 		table.insert(observed, get(scope))

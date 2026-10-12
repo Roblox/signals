@@ -71,7 +71,14 @@ end
 local validationEnabled = _G.__SIGNALS_VALIDATION_ENABLED__ or _G.__DEV__
 local callUserSpaceWithScope = if validationEnabled then callUserSpaceWithScopeValidation else callUserSpace :: never
 
-local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?, options: SignalOptions?): (getter<T>, setter<T>)
+-- Keep the third position for the optional debug name added by the diagnostics
+-- branch, so the no-flush option has the same position when both land.
+local function createSignal<T>(
+	initial: (() -> T) | T,
+	equals: equals<T>?,
+	_debugName: string?,
+	options: SignalOptions?
+): (getter<T>, setter<T>)
 	local isInitialized = false
 	local version = 0
 

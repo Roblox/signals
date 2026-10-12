@@ -13,7 +13,7 @@ export type dispose = () -> ()
 
 -- The "scope" function is used by a source (signals and computeds) to register itself with
 -- an observer (computeds and effects) when the source is read
-export type scope = (source) -> observer
+export type scope = (source) -> observer?
 
 -- The "source" function is used by an observer to:
 -- 1. Ask the source to update, then return its latest version

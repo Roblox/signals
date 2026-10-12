@@ -37,6 +37,19 @@ local function defaultEquals<T>(current: T, incoming: T)
 	return current == incoming
 end
 
+-- A table carrying `__call` is as good as a function to everything below, so the
+-- two are worth one question rather than two at every call site.
+local function isCallable(value: any): boolean
+	if type(value) == "function" then
+		return true
+	end
+	if type(value) == "table" then
+		local mt = getmetatable(value)
+		return type(mt) == "table" and typeof(mt.__call) == "function"
+	end
+	return false
+end
+
 local function handleError(ok: boolean, ...)
 	if not ok then
 		local err = (...)
@@ -300,4 +313,6 @@ return {
 	createSignal = createSignal,
 	createComputed = createComputed,
 	createEffect = createEffect,
+
+	isCallable = isCallable,
 }

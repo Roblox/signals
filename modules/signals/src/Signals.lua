@@ -13,7 +13,7 @@ export type dispose = () -> ()
 
 -- The "scope" function is used by a source (signals and computeds) to register itself with
 -- an observer (computeds and effects) when the source is read
-export type scope = (source) -> observer
+export type scope = (source) -> observer?
 
 -- The "source" function is used by an observer to:
 -- 1. Ask the source to update, then return its latest version
@@ -181,7 +181,11 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?, debug
 	local function connectToScope(requestor: scope | false | nil)
 		if requestor then
 			local childObserver = requestor(source)
-			observers[childObserver] = true
+			-- A scope may decline to observe, and a nil key would raise here instead
+			-- of at the scope that returned it.
+			if childObserver ~= nil then
+				observers[childObserver] = true
+			end
 		elseif requestor == nil and warnScopelessReads and activeEvaluationDepth > 0 then
 			-- `false` is a deliberate untracked read. Omitting the argument entirely
 			-- is the mistake worth reporting.
@@ -202,6 +206,11 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?, debug
 		return value
 	end
 
+	--[[
+		Every function reaching a setter is a functional update, called with the
+		stored value. To store a function as the value, return it from an updater:
+		`set(function() return callback end)`.
+	]]
 	local function setter(update: update<T>)
 		ensureInitialized()
 		local newValue = if typeof(update) == "function" then callUserSpace(update, value) else update
@@ -320,7 +329,11 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?, deb
 	local function connectToScope(requestor: scope | false | nil)
 		if requestor then
 			local childObserver = requestor(source)
-			observers[childObserver] = true
+			-- A scope may decline to observe, and a nil key would raise here instead
+			-- of at the scope that returned it.
+			if childObserver ~= nil then
+				observers[childObserver] = true
+			end
 		elseif requestor == nil and warnScopelessReads and activeEvaluationDepth > 0 then
 			-- `false` is a deliberate untracked read. Omitting the argument entirely
 			-- is the mistake worth reporting.

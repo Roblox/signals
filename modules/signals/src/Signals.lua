@@ -32,7 +32,7 @@ type observer = () -> ()
 --[[
 	Timings for a profiler, supplied by the host rather than required, so nothing
 	here knows about the runtime using it. Bound as upvalues rather than read out of
-	a table per call, so a hook that is not installed costs what a constant did.
+	a table per call; unhooked paths branch before doing instrumentation work.
 
 	The `begin` hooks return whatever the host measures in, and it comes back to the
 	matching `end`, so this file never decides what a timestamp is.
@@ -152,15 +152,17 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (get
 	end
 
 	local function notifyObservers()
-		local count = 0
-		for childObserver in observers do
-			childObserver()
-			if hooksInstalled then
+		if hooksInstalled then
+			local count = 0
+			for childObserver in observers do
+				childObserver()
 				count += 1
 			end
-		end
-		if hooksInstalled then
 			onSignalNotify(count)
+		else
+			for childObserver in observers do
+				childObserver()
+			end
 		end
 		table.clear(observers)
 	end

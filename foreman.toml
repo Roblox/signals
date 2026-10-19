@@ -1,9 +1,8 @@
 [tools]
-luau-lsp = { source = "JohnnyMorganz/luau-lsp", version = "=1.53.3" }
-lute = { source = "luau-lang/lute", version = "=0.1.0-nightly.20260408" }
-rocale-cli = { source = "Roblox/rocale-cli", version = "=0.1.2" }
+luau-lsp = { source = "JohnnyMorganz/luau-lsp", version = "=1.69.0" }
+lute = { source = "luau-lang/lute", version = "=1.0.1-nightly.20260813" }
+rocale-cli = { source = "Roblox/rocale-cli", version = "=0.1.3" }
 rojo = { source = "rojo-rbx/rojo", version = "=7.5.1" }
-selene = { source = "Kampfkarren/selene", version = "=0.29.0" }
-stylua = { source = "JohnnyMorganz/StyLua", version = "=2.0.1" }
+selene = { source = "Kampfkarren/selene", version = "=0.31.0" }
+stylua = { source = "JohnnyMorganz/StyLua", version = "=2.5.2" }
 wally = { source = "UpliftGames/wally", version = "=0.3.2" }
-wally-package-types = { source = "JohnnyMorganz/wally-package-types", version = "=1.6.2" }

@@ -15,6 +15,39 @@ local createEffect = Signals.createEffect
 
 local RUNS = 10
 
+it("allows a scope to decline observing a signal", function()
+	local get, set = createSignal(1)
+	local observations = 0
+	local scope = function(_source)
+		observations += 1
+		return nil
+	end
+
+	expect(get(scope)).toEqual(1)
+	expect(observations).toEqual(1)
+	set(2)
+	expect(get(scope)).toEqual(2)
+	expect(observations).toEqual(2)
+end)
+
+it("allows a scope to decline observing a computed", function()
+	local get, set = createSignal(1)
+	local computed = createComputed(function(scope)
+		return get(scope) * 2
+	end)
+	local observations = 0
+	local scope = function(_source)
+		observations += 1
+		return nil
+	end
+
+	expect(computed(scope)).toEqual(2)
+	expect(observations).toEqual(1)
+	set(2)
+	expect(computed(scope)).toEqual(4)
+	expect(observations).toEqual(2)
+end)
+
 it("should execute an effect only once with no dependencies", function()
 	local count = 0
 
@@ -725,9 +758,11 @@ end)
 
 it("should lazily initialize signals with function values", function()
 	local initCount = 0
+	local argumentCount = -1
 
-	local get, set = createSignal(function()
+	local get, set = createSignal(function(...)
 		initCount += 1
+		argumentCount = select("#", ...)
 		return 100
 	end)
 
@@ -736,6 +771,7 @@ it("should lazily initialize signals with function values", function()
 	local value = get(false)
 	expect(value).toEqual(100)
 	expect(initCount).toEqual(1) -- initialized
+	expect(argumentCount).toEqual(0) -- an initializer is not an update
 
 	get(false)
 	expect(initCount).toEqual(1) -- should only init once
@@ -743,6 +779,19 @@ it("should lazily initialize signals with function values", function()
 	set(200)
 	expect(get(false)).toEqual(200)
 	expect(initCount).toEqual(1)
+end)
+
+it("should pass the stored value to a functional update", function()
+	local get, set = createSignal(41)
+	local received: number? = nil
+
+	set(function(previous)
+		received = previous
+		return previous + 1
+	end)
+
+	expect(received).toEqual(41)
+	expect(get(false)).toEqual(42)
 end)
 
 it("should handle table values with reference equality", function()

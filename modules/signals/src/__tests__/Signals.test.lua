@@ -4,6 +4,7 @@ local Packages = Root.Parent
 local JestGlobals = require(Packages.Dev.JestGlobals)
 local expect = JestGlobals.expect
 local it = JestGlobals.it
+local afterEach = JestGlobals.afterEach
 
 local SignalsScheduler = require(Packages.SignalsScheduler)
 local batch = SignalsScheduler.batch
@@ -12,6 +13,108 @@ local Signals = require(script.Parent.Parent.Signals)
 local createSignal = Signals.createSignal
 local createComputed = Signals.createComputed
 local createEffect = Signals.createEffect
+
+afterEach(function()
+	Signals.setHooks(nil)
+end)
+
+it("pairs profiling hooks on successful computed and effect runs", function()
+	local events = {}
+	Signals.setHooks({
+		beginComputedEval = function()
+			table.insert(events, "computed begin")
+			return 1
+		end,
+		endComputedEval = function(startedAt)
+			expect(startedAt).toEqual(1)
+			table.insert(events, "computed end")
+		end,
+		beginEffectRun = function()
+			table.insert(events, "effect begin")
+			return 2
+		end,
+		endEffectRun = function(startedAt, name)
+			expect(startedAt).toEqual(2)
+			expect(name).toEqual("named effect")
+			table.insert(events, "effect end")
+		end,
+	})
+
+	local computed = createComputed(function(_scope)
+		return "value"
+	end)
+	expect(computed(false)).toEqual("value")
+	local dispose = createEffect(function(_scope) end, nil, "named effect")
+	dispose()
+
+	expect(events).toEqual({ "computed begin", "computed end", "effect begin", "effect end" })
+end)
+
+it("pairs profiling hooks when a computed or effect errors", function()
+	local events = {}
+	Signals.setHooks({
+		beginComputedEval = function()
+			table.insert(events, "computed begin")
+			return 1
+		end,
+		endComputedEval = function(startedAt)
+			expect(startedAt).toEqual(1)
+			table.insert(events, "computed end")
+		end,
+		beginEffectRun = function()
+			table.insert(events, "effect begin")
+			return 2
+		end,
+		endEffectRun = function(startedAt, name)
+			expect(startedAt).toEqual(2)
+			expect(name).toEqual("failing effect")
+			table.insert(events, "effect end")
+		end,
+	})
+	local computed = createComputed(function(_scope)
+		error("computed failed")
+	end)
+	expect(function()
+		computed(false)
+	end).toThrow("computed failed")
+	expect(function()
+		createEffect(function(_scope)
+			error("effect failed")
+		end, nil, "failing effect")
+	end).toThrow("effect failed")
+	expect(events).toEqual({ "computed begin", "computed end", "effect begin", "effect end" })
+end)
+
+it("reports signal sets and the number of notified observers", function()
+	local setCount = 0
+	local notified = {}
+	Signals.setHooks({
+		onSignalSet = function()
+			setCount += 1
+		end,
+		onSignalNotify = function(count)
+			table.insert(notified, count)
+		end,
+	})
+	local get, set = createSignal(0)
+	local disposeA = createEffect(function(scope)
+		get(scope)
+	end)
+	local disposeB = createEffect(function(scope)
+		get(scope)
+	end)
+	set(1)
+	disposeA()
+	disposeB()
+	set(2)
+	set(2)
+	expect(setCount).toEqual(2)
+	expect(notified).toEqual({ 2, 0 })
+	Signals.setHooks(nil)
+	set(3)
+	expect(setCount).toEqual(2)
+	expect(notified).toEqual({ 2, 0 })
+end)
 local SignalsEffectCleanup = require(Packages.SignalsFlags).SignalsEffectCleanup
 
 local RUNS = 10

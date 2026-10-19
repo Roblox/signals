@@ -8,20 +8,32 @@ local isContinuing = false
 
 local continuations: { work } = {}
 
+--[[
+	Both drains below are indexed rather than iterated.
+
+	Work run during a drain can call `schedule`, which appends to the very table being
+	walked. Indexed traversal explicitly re-reads its length each time round. This
+	keeps the append behavior clear without relying on generalised iteration over
+	a table that changes during the loop.
+]]
 local function runWork(fn: work)
 	fn()
-	for _, work in continuations do
-		work()
+	local i = 1
+	while i <= #continuations do
+		continuations[i]()
+		i += 1
 	end
 end
 
 local function runContinuations(): (boolean, any)
 	local firstError: any = nil
-	for _, work in continuations do
-		local ok, err: any = xpcall(work, debug.traceback)
+	local i = 1
+	while i <= #continuations do
+		local ok, err: any = xpcall(continuations[i], debug.traceback)
 		if not ok and firstError == nil then
 			firstError = err
 		end
+		i += 1
 	end
 
 	return firstError == nil, firstError

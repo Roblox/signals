@@ -5,7 +5,7 @@ return {
 		linterrors = true,
 		aliases = {
 			scripts = "../scripts",
-			std = "~/.lute/typedefs/0.1.0/std",
+			std = "~/.lute/typedefs/1.0.1/std",
 		},
 	},
 }

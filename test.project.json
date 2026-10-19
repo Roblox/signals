@@ -10,15 +10,12 @@
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "Packages": {
-        "$path": "Packages",
+        "$className": "Folder",
         "Dev": {
           "$path": "DevPackages"
         },
         "Resources": {
           "$path": "modules/resources/src"
-        },
-        "ResourcesReact": {
-          "$path": "modules/resources-react/src"
         },
         "Signals": {
           "$path": "modules/signals/src"
@@ -31,12 +28,6 @@
         },
         "SignalsImplicitScope": {
           "$path": "modules/signals-implicit-scope/src"
-        },
-        "SignalsReact": {
-          "$path": "modules/signals-react/src"
-        },
-        "SignalsRoblox": {
-          "$path": "modules/signals-roblox/src"
         },
         "SignalsScheduler": {
           "$path": "modules/signals-scheduler/src"

@@ -45,6 +45,7 @@ it("leaves work pending when a no-flush signal is set outside a batch", function
 	SignalsScheduler.flush()
 	expect(observed).toEqual({ 0, 1 })
 	dispose()
+end)
 it("allows a scope to decline observing a signal", function()
 	local get, set = createSignal(1)
 	local observations = 0

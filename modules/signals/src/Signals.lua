@@ -10,6 +10,7 @@ export type setter<T> = (update<T>) -> ()
 export type update<T> = ((previous: T) -> T) | T
 export type equals<T> = (current: T, incoming: T) -> boolean
 export type dispose = () -> ()
+export type SignalOptions = { flushOnSet: boolean? }
 
 -- The "scope" function is used by a source (signals and computeds) to register itself with
 -- an observer (computeds and effects) when the source is read
@@ -70,7 +71,14 @@ end
 local validationEnabled = _G.__SIGNALS_VALIDATION_ENABLED__ or _G.__DEV__
 local callUserSpaceWithScope = if validationEnabled then callUserSpaceWithScopeValidation else callUserSpace :: never
 
-local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (getter<T>, setter<T>)
+-- Keep the third position for the optional debug name added by the diagnostics
+-- branch, so the no-flush option has the same position when both land.
+local function createSignal<T>(
+	initial: (() -> T) | T,
+	equals: equals<T>?,
+	_debugName: string?,
+	options: SignalOptions?
+): (getter<T>, setter<T>)
 	local isInitialized = false
 	local version = 0
 
@@ -137,7 +145,9 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (get
 			value = newValue
 			version = os.clock()
 			notifyObservers()
-			flush()
+			if options == nil or options.flushOnSet ~= false then
+				flush()
+			end
 		end
 	end
 

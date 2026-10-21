@@ -35,10 +35,10 @@ it("reports one outer batch and all continuations drained in that batch", functi
 	expect(batches).toEqual(1)
 	expect(counts).toEqual({ 2 })
 
-	-- A flush is an outer batch even when no continuation was queued.
+	-- An empty flush has no work to profile.
 	flush()
-	expect(batches).toEqual(2)
-	expect(counts).toEqual({ 2, 0 })
+	expect(batches).toEqual(1)
+	expect(counts).toEqual({ 2 })
 	SignalsScheduler.setHooks(nil)
 end)
 

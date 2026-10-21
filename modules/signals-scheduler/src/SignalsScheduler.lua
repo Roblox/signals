@@ -22,11 +22,13 @@ local function noop() end
 
 local onBatch: () -> () = noop
 local onContinuations: (count: number) -> () = noop
+local hooksInstalled = false
 
 local function setHooks(hooks: Hooks?)
 	local given: any = if hooks ~= nil then hooks else {}
 	onBatch = given.onBatch or noop
 	onContinuations = given.onContinuations or noop
+	hooksInstalled = next(given) ~= nil
 end
 
 --[[
@@ -61,21 +63,28 @@ end
 
 local function batch(fn: work)
 	if not isContinuing then
-		onBatch()
 		isContinuing = true
 
 		if SignalsSchedulerResetStateAfterErrors then
 			local ok, err: any = xpcall(fn, debug.traceback)
+			local batchHookOk, batchHookErr: any = true, nil
+			if hooksInstalled and #continuations > 0 then
+				batchHookOk, batchHookErr = xpcall(onBatch, debug.traceback)
+			end
 			local continuationsOk, continuationsErr: any = runContinuations()
-			local hookOk, hookErr: any = xpcall(function()
-				onContinuations(#continuations)
-			end, debug.traceback)
+			local hookOk, hookErr: any = true, nil
+			if hooksInstalled and #continuations > 0 then
+				hookOk, hookErr = xpcall(onContinuations, debug.traceback, #continuations)
+			end
 
 			table.clear(continuations)
 			isContinuing = false
 
 			if not ok then
 				error(err, 0)
+			end
+			if not batchHookOk then
+				error(batchHookErr, 0)
 			end
 			if not continuationsOk then
 				error(continuationsErr, 0)
@@ -85,10 +94,19 @@ local function batch(fn: work)
 			end
 		else
 			fn()
+			if hooksInstalled and #continuations > 0 then
+				local hookOk, hookErr: any = xpcall(onBatch, debug.traceback)
+				if not hookOk then
+					table.clear(continuations)
+					isContinuing = false
+					error(hookErr, 0)
+				end
+			end
 			runWork()
-			local hookOk, hookErr: any = xpcall(function()
-				onContinuations(#continuations)
-			end, debug.traceback)
+			local hookOk, hookErr: any = true, nil
+			if hooksInstalled and #continuations > 0 then
+				hookOk, hookErr = xpcall(onContinuations, debug.traceback, #continuations)
+			end
 
 			table.clear(continuations)
 			isContinuing = false

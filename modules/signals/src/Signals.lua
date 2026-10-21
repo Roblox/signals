@@ -37,8 +37,8 @@ local function defaultEquals<T>(current: T, incoming: T)
 	return current == incoming
 end
 
--- A table carrying `__call` is as good as a function to everything below, so the
--- two are worth one question rather than two at every call site.
+-- A table carrying `__call` is callable when its metatable is visible.
+-- Protected metatables hide `__call`, so they return false here.
 local function isCallable(value: any): boolean
 	if type(value) == "function" then
 		return true

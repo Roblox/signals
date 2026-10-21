@@ -1,5 +1,6 @@
 local Packages = script.Parent.Parent
 local SignalsScheduler = require(Packages.SignalsScheduler)
+local SignalsEffectCleanup = require(Packages.SignalsFlags).SignalsEffectCleanup
 local flush = SignalsScheduler.flush
 local schedule = SignalsScheduler.schedule
 
@@ -10,6 +11,7 @@ export type setter<T> = (update<T>) -> ()
 export type update<T> = ((previous: T) -> T) | T
 export type equals<T> = (current: T, incoming: T) -> boolean
 export type dispose = () -> ()
+export type work = () -> ()
 
 -- The "scope" function is used by a source (signals and computeds) to register itself with
 -- an observer (computeds and effects) when the source is read
@@ -26,6 +28,47 @@ type source = (observer?, true?) -> number
 
 -- The "observer" function is used by a source to notify the observer that one of its sources may be stale
 type observer = () -> ()
+
+--[[
+	Timings for a profiler, supplied by the host rather than required, so nothing
+	here knows about the runtime using it. Bound as upvalues rather than read out of
+	a table per call; unhooked paths branch before doing instrumentation work.
+
+	The `begin` hooks return whatever the host measures in, and it comes back to the
+	matching `end`, so this file never decides what a timestamp is.
+]]
+export type Hooks = {
+	onSignalSet: (() -> ())?,
+	onSignalNotify: ((count: number) -> ())?,
+	beginComputedEval: (() -> number)?,
+	endComputedEval: ((startedAt: number) -> ())?,
+	beginEffectRun: (() -> number)?,
+	endEffectRun: ((startedAt: number, debugName: string?) -> ())?,
+}
+
+local function noop() end
+local function noopReturningZero()
+	return 0
+end
+
+local onSignalSet: () -> () = noop
+local onSignalNotify: (count: number) -> () = noop
+local beginComputedEval: () -> number = noopReturningZero
+local endComputedEval: (startedAt: number) -> () = noop
+local beginEffectRun: () -> number = noopReturningZero
+local endEffectRun: (startedAt: number, debugName: string?) -> () = noop
+local hooksInstalled = false
+
+local function setHooks(hooks: Hooks?)
+	local given: any = if hooks ~= nil then hooks else {}
+	hooksInstalled = next(given) ~= nil
+	onSignalSet = given.onSignalSet or noop
+	onSignalNotify = given.onSignalNotify or noop
+	beginComputedEval = given.beginComputedEval or noopReturningZero
+	endComputedEval = given.endComputedEval or noop
+	beginEffectRun = given.beginEffectRun or noopReturningZero
+	endEffectRun = given.endEffectRun or noop
+end
 
 type set<T> = { [T]: true? }
 local WeakSetMetatable = table.freeze({ __mode = "k" })
@@ -113,8 +156,17 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (get
 	end
 
 	local function notifyObservers()
-		for childObserver in observers do
-			childObserver()
+		if hooksInstalled then
+			local count = 0
+			for childObserver in observers do
+				childObserver()
+				count += 1
+			end
+			onSignalNotify(count)
+		else
+			for childObserver in observers do
+				childObserver()
+			end
 		end
 		table.clear(observers)
 	end
@@ -134,6 +186,9 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (get
 		ensureInitialized()
 		local newValue = if typeof(update) == "function" then callUserSpace(update, value) else update
 		if not callUserSpace(isEqual, value, newValue) then
+			if hooksInstalled then
+				onSignalSet()
+			end
 			value = newValue
 			version = os.clock()
 			notifyObservers()
@@ -175,12 +230,27 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 		return observer
 	end
 
+	local function evaluate(): T
+		if not hooksInstalled then
+			return callUserSpaceWithScope(computed, scope)
+		end
+		local startedAt = beginComputedEval()
+		local ok, result = xpcall(function()
+			return callUserSpaceWithScope(computed, scope)
+		end, debug.traceback)
+		endComputedEval(startedAt)
+		if not ok then
+			error(result, 0)
+		end
+		return result
+	end
+
 	local function ensureInitialized()
 		if not isInitialized then
 			isInitialized = true
 			observers = createWeakSet({})
 			sources = {}
-			value = callUserSpaceWithScope(computed, scope)
+			value = evaluate()
 			absoluteVersion = os.clock()
 			cachedVersion = absoluteVersion
 		end
@@ -200,7 +270,7 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 				local newVersion = parentSource()
 				if newVersion > absoluteVersion then
 					disconnectSources()
-					local newValue = callUserSpaceWithScope(computed, scope)
+					local newValue = evaluate()
 					absoluteVersion = os.clock()
 					if not callUserSpace(isEqual, value, newValue) then
 						value = newValue
@@ -250,14 +320,41 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 	return getter
 end
 
-local function createEffect(effect: (scope) -> ()): dispose
+--[[
+	An effect may return a cleanup function, which runs before the next run of the
+	body and once more on dispose.
+
+	`scheduleWork` hands the timing of every run, including the first, to a host
+	that has its own queue to order this against. Without it the scheduler above
+	is used and the first run is immediate, as before.
+]]
+local function createEffect(
+	effect: (scope) -> ...(() -> ()),
+	scheduleWork: ((work) -> ())?,
+	debugName: string?
+): dispose
+	local isInitialized = false
 	local isScheduled = false
 	local isDisposed = false
 	local version = 0
+	local cleanup: (() -> ())? = nil
 
 	local sources: set<source> = {}
 
 	local observer: observer
+
+	local function runCleanup()
+		if cleanup then
+			local fn = cleanup
+			cleanup = nil
+			-- Swallowed so a failing cleanup cannot stop the effect re-running, but
+			-- reported, because it is otherwise a completely silent failure.
+			local ok, err: any = xpcall(fn, debug.traceback)
+			if not ok then
+				warn(`Signals: effect cleanup errored{if debugName then ` in '{debugName}'` else ""}: {err}`)
+			end
+		end
+	end
 
 	local function disconnectSources()
 		for source in sources do
@@ -268,6 +365,7 @@ local function createEffect(effect: (scope) -> ()): dispose
 
 	local function dispose()
 		isDisposed = true
+		runCleanup()
 		disconnectSources()
 	end
 
@@ -276,35 +374,96 @@ local function createEffect(effect: (scope) -> ()): dispose
 		return observer
 	end
 
-	local function processNotification()
-		if not isDisposed then
-			isScheduled = false
-			for parentSource in sources do
-				local newVersion = parentSource()
-				if newVersion > version then
-					disconnectSources()
-					callUserSpaceWithScope(effect, scope)
-					version = os.clock()
-					return
-				end
+	local function runEffect()
+		runCleanup()
+		local result
+		if hooksInstalled then
+			local startedAt = beginEffectRun()
+			local ok, value = xpcall(function()
+				return callUserSpaceWithScope(effect, scope)
+			end, debug.traceback)
+			endEffectRun(startedAt, debugName)
+			if not ok then
+				error(value, 0)
 			end
-			for parentSource in sources do
-				parentSource(observer)
+			result = value
+		else
+			result = callUserSpaceWithScope(effect, scope)
+		end
+		if SignalsEffectCleanup and typeof(result) == "function" then
+			cleanup = result
+			if isDisposed then
+				runCleanup()
 			end
 		end
 	end
 
+	local processNotification: () -> ()
+
+	-- A host scheduler must defer work until after the current notification pass.
+	-- Running it inline can drop the effect's new subscription when the source
+	-- clears its observer set at the end of that pass.
+	local function enqueueExternal()
+		local returned = false
+		local ok, err: any = xpcall(function()
+			(scheduleWork :: (work) -> ())(function()
+				assert(returned, "Signals: scheduleWork must defer effect work")
+				processNotification()
+			end)
+		end, debug.traceback)
+		returned = true
+		if not ok then
+			isScheduled = false
+			error(err, 0)
+		end
+	end
+
+	function processNotification()
+		if isDisposed then
+			return
+		end
+		isScheduled = false
+		-- A deferred first run has no sources to compare versions against yet.
+		if not isInitialized then
+			runEffect()
+			version = os.clock()
+			isInitialized = true
+			return
+		end
+		for parentSource in sources do
+			local newVersion = parentSource()
+			if newVersion > version then
+				disconnectSources()
+				runEffect()
+				version = os.clock()
+				return
+			end
+		end
+		-- Nothing moved, so re-attach and skip the body.
+		for parentSource in sources do
+			parentSource(observer)
+		end
+	end
+
 	function observer()
-		if not isDisposed then
-			if not isScheduled then
-				isScheduled = true
+		if not isDisposed and not isScheduled then
+			isScheduled = true
+			if scheduleWork then
+				enqueueExternal()
+			else
 				schedule(processNotification)
 			end
 		end
 	end
 
-	callUserSpaceWithScope(effect, scope)
-	version = os.clock()
+	if scheduleWork then
+		isScheduled = true
+		enqueueExternal()
+	else
+		runEffect()
+		version = os.clock()
+		isInitialized = true
+	end
 
 	return dispose
 end
@@ -313,4 +472,6 @@ return {
 	createSignal = createSignal,
 	createComputed = createComputed,
 	createEffect = createEffect,
+
+	setHooks = setHooks,
 }

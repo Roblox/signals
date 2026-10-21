@@ -197,7 +197,7 @@ print(getFullName(false)) -- "Matt Tennant"
 Creates a reactive side effect that automatically re-runs when dependencies change.
 
 ```luau
-function createEffect(effect: (scope) -> (() -> ())?, scheduleWork: ((work) -> ())?): dispose
+function createEffect(effect: (scope) -> ...(() -> ()), scheduleWork: ((work) -> ())?): dispose
 ```
 
 #### Parameters

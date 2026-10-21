@@ -328,7 +328,11 @@ end
 	that has its own queue to order this against. Without it the scheduler above
 	is used and the first run is immediate, as before.
 ]]
-local function createEffect(effect: (scope) -> (() -> ())?, scheduleWork: ((work) -> ())?, debugName: string?): dispose
+local function createEffect(
+	effect: (scope) -> ...(() -> ()),
+	scheduleWork: ((work) -> ())?,
+	debugName: string?
+): dispose
 	local isInitialized = false
 	local isScheduled = false
 	local isDisposed = false
@@ -345,7 +349,7 @@ local function createEffect(effect: (scope) -> (() -> ())?, scheduleWork: ((work
 			cleanup = nil
 			-- Swallowed so a failing cleanup cannot stop the effect re-running, but
 			-- reported, because it is otherwise a completely silent failure.
-			local ok, err = xpcall(fn, debug.traceback)
+			local ok, err: any = xpcall(fn, debug.traceback)
 			if not ok then
 				warn(`Signals: effect cleanup errored{if debugName then ` in '{debugName}'` else ""}: {err}`)
 			end
@@ -401,7 +405,7 @@ local function createEffect(effect: (scope) -> (() -> ())?, scheduleWork: ((work
 	-- clears its observer set at the end of that pass.
 	local function enqueueExternal()
 		local returned = false
-		local ok, err = xpcall(function()
+		local ok, err: any = xpcall(function()
 			(scheduleWork :: (work) -> ())(function()
 				assert(returned, "Signals: scheduleWork must defer effect work")
 				processNotification()

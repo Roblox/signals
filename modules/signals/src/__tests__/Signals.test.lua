@@ -1131,7 +1131,7 @@ it("should defer every run, including the first, to an external scheduler", func
 	local queued = {}
 	local runCount = 0
 
-	local function scheduleWork(work)
+	local function scheduleWork(work: () -> ())
 		table.insert(queued, work)
 	end
 

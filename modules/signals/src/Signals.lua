@@ -47,7 +47,7 @@ local warnScopelessReads = false
 local activeEvaluationDepth = 0
 local debugStates: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
 
-local function getDebugState(getter: any): any?
+local function getDebugState(getter: any): any
 	return debugStates[getter]
 end
 local report: (message: string) -> () = function(message: string)

@@ -8,4 +8,6 @@ export type dispose = Signals.dispose
 
 export type scope = Signals.scope
 
+export type Config = Signals.Config
+
 return Signals

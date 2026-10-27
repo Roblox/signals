@@ -93,7 +93,8 @@ Creates a queryable and settable reactive value.
 function createSignal<T>(
     initial: (() -> T) | T,
     equals: equals<T>?,
-    debugName: string?
+    debugName: string?,
+    options: SignalOptions?
 ): (getter<T>, setter<T>)
 ```
 
@@ -101,6 +102,8 @@ function createSignal<T>(
 
 - **initial**: Initial value or a function that returns the initial value (for lazy initialization)
 - **equals** *(optional)*: Custom equality function to determine if the value changed. Defaults to `==`
+- **debugName** *(optional)*: Reserved third argument for the diagnostics API.
+- **options.flushOnSet** *(optional)*: Set to `false` for host-owned sources updated inside a surrounding scheduler batch. Observers are notified, but effects remain queued until that batch or a later flush. Calling this setter outside a batch leaves effects pending until another flush.
 
 #### Returns
 

@@ -13,8 +13,56 @@ local createSignal = Signals.createSignal
 local createComputed = Signals.createComputed
 local createEffect = Signals.createEffect
 
+it("identifies functions and callable tables", function()
+	local callable = setmetatable({}, {
+		__call = function() end,
+	})
+	expect(Signals.isCallable(function() end)).toEqual(true)
+	expect(Signals.isCallable(callable)).toEqual(true)
+	expect(Signals.isCallable({})).toEqual(false)
+	expect(Signals.isCallable(1)).toEqual(false)
+end)
+
+it("does not mistake a protected metatable for a callable table", function()
+	local protected = setmetatable({}, {
+		__metatable = "locked",
+	})
+	expect(Signals.isCallable(protected)).toEqual(false)
+end)
+
 local RUNS = 10
 
+it("notifies without flushing inside an enclosing batch", function()
+	local get, set = createSignal(0, nil, nil, { flushOnSet = false })
+	local observed = {}
+	local dispose = createEffect(function(scope)
+		table.insert(observed, get(scope))
+	end)
+
+	batch(function()
+		set(1)
+		set(function(previous)
+			return previous + 1
+		end)
+		expect(observed).toEqual({ 0 })
+	end)
+	expect(observed).toEqual({ 0, 2 })
+	dispose()
+end)
+
+it("leaves work pending when a no-flush signal is set outside a batch", function()
+	local get, set = createSignal(0, nil, nil, { flushOnSet = false })
+	local observed = {}
+	local dispose = createEffect(function(scope)
+		table.insert(observed, get(scope))
+	end)
+	set(1)
+	expect(get(false)).toEqual(1)
+	expect(observed).toEqual({ 0 })
+	SignalsScheduler.flush()
+	expect(observed).toEqual({ 0, 1 })
+	dispose()
+end)
 it("allows a scope to decline observing a signal", function()
 	local get, set = createSignal(1)
 	local observations = 0

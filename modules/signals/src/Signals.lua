@@ -12,6 +12,7 @@ export type update<T> = ((previous: T) -> T) | T
 export type equals<T> = (current: T, incoming: T) -> boolean
 export type dispose = () -> ()
 export type work = () -> ()
+export type SignalOptions = { flushOnSet: boolean? }
 
 -- The "scope" function is used by a source (signals and computeds) to register itself with
 -- an observer (computeds and effects) when the source is read
@@ -80,6 +81,19 @@ local function defaultEquals<T>(current: T, incoming: T)
 	return current == incoming
 end
 
+-- A table carrying `__call` is callable when its metatable is visible.
+-- Protected metatables hide `__call`, so they return false here.
+local function isCallable(value: any): boolean
+	if type(value) == "function" then
+		return true
+	end
+	if type(value) == "table" then
+		local mt = getmetatable(value)
+		return type(mt) == "table" and typeof(mt.__call) == "function"
+	end
+	return false
+end
+
 local function handleError(ok: boolean, ...)
 	if not ok then
 		local err = (...)
@@ -113,7 +127,14 @@ end
 local validationEnabled = _G.__SIGNALS_VALIDATION_ENABLED__ or _G.__DEV__
 local callUserSpaceWithScope = if validationEnabled then callUserSpaceWithScopeValidation else callUserSpace :: never
 
-local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (getter<T>, setter<T>)
+-- Keep the third position for the optional debug name added by the diagnostics
+-- branch, so the no-flush option has the same position when both land.
+local function createSignal<T>(
+	initial: (() -> T) | T,
+	equals: equals<T>?,
+	_debugName: string?,
+	options: SignalOptions?
+): (getter<T>, setter<T>)
 	local isInitialized = false
 	local version = 0
 
@@ -192,7 +213,9 @@ local function createSignal<T>(initial: (() -> T) | T, equals: equals<T>?): (get
 			value = newValue
 			version = os.clock()
 			notifyObservers()
-			flush()
+			if options == nil or options.flushOnSet ~= false then
+				flush()
+			end
 		end
 	end
 
@@ -474,4 +497,5 @@ return {
 	createEffect = createEffect,
 
 	setHooks = setHooks,
+	isCallable = isCallable,
 }

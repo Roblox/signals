@@ -6,6 +6,7 @@ export type update<T> = Signals.update<T>
 export type equals<T> = Signals.equals<T>
 export type dispose = Signals.dispose
 export type work = Signals.work
+export type SignalOptions = Signals.SignalOptions
 
 export type scope = Signals.scope
 

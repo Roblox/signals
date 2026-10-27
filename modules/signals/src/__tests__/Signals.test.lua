@@ -13,6 +13,23 @@ local createSignal = Signals.createSignal
 local createComputed = Signals.createComputed
 local createEffect = Signals.createEffect
 
+it("identifies functions and callable tables", function()
+	local callable = setmetatable({}, {
+		__call = function() end,
+	})
+	expect(Signals.isCallable(function() end)).toEqual(true)
+	expect(Signals.isCallable(callable)).toEqual(true)
+	expect(Signals.isCallable({})).toEqual(false)
+	expect(Signals.isCallable(1)).toEqual(false)
+end)
+
+it("does not mistake a protected metatable for a callable table", function()
+	local protected = setmetatable({}, {
+		__metatable = "locked",
+	})
+	expect(Signals.isCallable(protected)).toEqual(false)
+end)
+
 local RUNS = 10
 
 it("notifies without flushing inside an enclosing batch", function()

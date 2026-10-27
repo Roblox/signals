@@ -197,13 +197,14 @@ print(getFullName(false)) -- "Matt Tennant"
 Creates a reactive side effect that automatically re-runs when dependencies change.
 
 ```luau
-function createEffect(effect: (scope) -> ...(() -> ()), scheduleWork: ((work) -> ())?): dispose
+function createEffect(effect: (scope) -> ...(() -> ()), scheduleWork: ((work) -> ())?, debugName: string?): dispose
 ```
 
 #### Parameters
 
 - **effect**: A function containing the side effect. Receives a `scope` parameter for tracking dependencies
 - **scheduleWork** *(optional)*: A host scheduler that must defer the supplied work until after the current notification pass. It also controls the first run.
+- **debugName** *(optional)*: A name included in effect timing hooks and cleanup error warnings.
 
 #### Returns
 

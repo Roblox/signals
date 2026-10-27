@@ -41,7 +41,6 @@ it("should not re-execute if nothing is read", function()
 	local dispose = createEffect(function(scope)
 		count += 1
 		proxy(scope)
-		return nil
 	end)
 
 	task.wait()
@@ -84,7 +83,6 @@ it("should only notify as changed when accessed fields are changed", function()
 	local disposeFoo = createEffect(function(scope)
 		countFoo += 1
 		local _ = proxy(scope).foo
-		return nil
 	end)
 
 	task.wait()
@@ -105,7 +103,6 @@ it("should only notify as changed when accessed fields are changed", function()
 	local disposeBar = createEffect(function(scope)
 		countBar += 1
 		local _ = proxy(scope).bar
-		return nil
 	end)
 
 	task.wait()
@@ -156,7 +153,6 @@ it("should support iterating over elements", function()
 		for key in proxy(scope) do
 			local _ = key
 		end
-		return nil
 	end)
 
 	task.wait()
@@ -192,7 +188,6 @@ it("should support removing elements", function()
 	local dispose = createEffect(function(scope)
 		count += 1
 		local _ = proxy(scope).foo
-		return nil
 	end)
 
 	task.wait()
@@ -224,7 +219,6 @@ it("should tracking length", function()
 	local dispose = createEffect(function(scope)
 		count += 1
 		local _ = #proxy(scope)
-		return nil
 	end)
 
 	task.wait()

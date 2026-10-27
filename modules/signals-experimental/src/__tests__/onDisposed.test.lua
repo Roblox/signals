@@ -22,7 +22,6 @@ it("should call disposed when signal changes", function()
 		onDisposed(scope, function()
 			counter += 1
 		end)
-		return nil
 	end)
 
 	task.wait()
@@ -52,7 +51,6 @@ it("should call disposed irrespective of call order", function()
 		end)
 		-- here, getValue is called after onDisposed
 		getValue(scope)
-		return nil
 	end)
 
 	task.wait()

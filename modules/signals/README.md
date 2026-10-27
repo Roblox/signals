@@ -159,7 +159,8 @@ Creates a read-only reactive derived value.
 ```luau
 function createComputed<T>(
     computed: (scope) -> T,
-    equals: equals<T>?
+    equals: equals<T>?,
+    debugName: string?
 ): getter<T>
 ```
 
@@ -256,3 +257,15 @@ end)
 ```
 
 Use `false` or `nil` when you want to "peek" at a value without subscribing to changes, or when reading values outside of reactive contexts.
+
+## Host diagnostics
+
+`Signals.configure({ showInternals = true })` records state for sources created
+after configuration. `Signals.getDebugState(getter)` returns that state, or `nil`
+for a source created while the option was off. Debug names use the third argument
+of both `createSignal(initial, equals, debugName)` and
+`createComputed(fn, equals, debugName)`.
+
+`Signals.configure({ warnScopelessReads = true, report = sink })` reports a
+`nil`-scope read from inside a computed or effect body once per source line. A
+read outside a reactive body, or an intentional `get(false)` read, is silent.

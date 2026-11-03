@@ -102,7 +102,7 @@ function createSignal<T>(
 
 - **initial**: Initial value or a function that returns the initial value (for lazy initialization)
 - **equals** *(optional)*: Custom equality function to determine if the value changed. Defaults to `==`
-- **debugName** *(optional)*: Reserved third argument for the diagnostics API.
+- **debugName** *(optional)*: Name exposed by `getDebugState` when `showInternals` is enabled.
 - **options.flushOnSet** *(optional)*: Set to `false` for host-owned sources updated inside a surrounding scheduler batch. Observers are notified, but effects remain queued until that batch or a later flush. Calling this setter outside a batch leaves effects pending until another flush.
 
 #### Returns
@@ -168,6 +168,7 @@ function createComputed<T>(
 
 - **computed**: A function that computes the derived value. Receives a `scope` parameter for tracking dependencies
 - **equals** *(optional)*: Custom equality function to determine if the computed value changed. Defaults to `==`
+- **debugName** *(optional)*: Name exposed by `getDebugState` when `showInternals` is enabled.
 
 #### Returns
 

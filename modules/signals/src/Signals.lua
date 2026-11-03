@@ -31,6 +31,45 @@ type source = (observer?, true?) -> number
 type observer = () -> ()
 
 --[[
+	Diagnostics are configured by the host rather than compiled in, because what
+	counts as a problem depends on the runtime driving these signals, and none of
+	it should cost anything when it has not been asked for.
+]]
+export type Config = {
+	-- Records state for signals and computeds created while enabled. Inspect it
+	-- with `getDebugState`. Off by default: it is an allocation per source.
+	showInternals: boolean?,
+	-- Reports a read that named no scope.
+	warnScopelessReads: boolean?,
+	-- Where a report goes. Defaults to `warn`.
+	report: ((message: string) -> ())?,
+}
+
+local showInternals = false
+local warnScopelessReads = false
+local activeEvaluationDepth = 0
+local debugStates: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
+
+local function getDebugState(getter: any): any
+	return debugStates[getter]
+end
+local report: (message: string) -> () = function(message: string)
+	warn(message)
+end
+
+local function configure(options: Config)
+	if options.showInternals ~= nil then
+		showInternals = options.showInternals
+	end
+	if options.warnScopelessReads ~= nil then
+		warnScopelessReads = options.warnScopelessReads
+	end
+	if options.report ~= nil then
+		report = options.report
+	end
+end
+
+--[[
 	Timings for a profiler, supplied by the host rather than required, so nothing
 	here knows about the runtime using it. Bound as upvalues rather than read out of
 	a table per call; unhooked paths branch before doing instrumentation work.
@@ -81,6 +120,23 @@ local function defaultEquals<T>(current: T, incoming: T)
 	return current == incoming
 end
 
+--[[
+	Reports a read that named no scope, so nothing re-runs when the value changes.
+
+	Deduplicated by source line, because the reads worth finding are the ones
+	inside an evaluation that runs repeatedly.
+]]
+local reportedScopelessReads: { [string]: true } = {}
+
+local function reportScopelessRead()
+	local source, line = debug.info(4, "sl")
+	local where = `{tostring(source)}:{tostring(line)}`
+	if reportedScopelessReads[where] == nil then
+		reportedScopelessReads[where] = true
+		report(`Signals: a source was read without naming a scope at {where}, so nothing re-runs when it changes`)
+	end
+end
+
 -- A table carrying `__call` is callable when its metatable is visible.
 -- Protected metatables hide `__call`, so they return false here.
 local function isCallable(value: any): boolean
@@ -127,12 +183,27 @@ end
 local validationEnabled = _G.__SIGNALS_VALIDATION_ENABLED__ or _G.__DEV__
 local callUserSpaceWithScope = if validationEnabled then callUserSpaceWithScopeValidation else callUserSpace :: never
 
+local function evaluateWithScope(fn: (scope) -> any, scopeValue: scope): any
+	if not warnScopelessReads then
+		return callUserSpaceWithScope(fn, scopeValue)
+	end
+	activeEvaluationDepth += 1
+	local ok, result = xpcall(function()
+		return callUserSpaceWithScope(fn, scopeValue)
+	end, debug.traceback)
+	activeEvaluationDepth -= 1
+	if not ok then
+		error(result, 0)
+	end
+	return result
+end
+
 -- Keep the third position for the optional debug name added by the diagnostics
 -- branch, so the no-flush option has the same position when both land.
 local function createSignal<T>(
 	initial: (() -> T) | T,
 	equals: equals<T>?,
-	_debugName: string?,
+	debugName: string?,
 	options: SignalOptions?
 ): (getter<T>, setter<T>)
 	local isInitialized = false
@@ -142,6 +213,7 @@ local function createSignal<T>(
 	local observers: set<observer>
 
 	local isEqual: equals<T> = if equals ~= nil then equals else defaultEquals
+	local debugState: any = if showInternals then { name = debugName, version = 0, value = initial } else nil
 
 	local function ensureInitialized()
 		if not isInitialized then
@@ -149,6 +221,11 @@ local function createSignal<T>(
 			value = if typeof(initial) == "function" then callUserSpace(initial) else initial
 			version = os.clock()
 			observers = createWeakSet({})
+			if debugState then
+				debugState.version = version
+				debugState.value = value
+				debugState.observers = observers
+			end
 		end
 	end
 
@@ -173,6 +250,10 @@ local function createSignal<T>(
 			if childObserver ~= nil then
 				observers[childObserver] = true
 			end
+		elseif requestor == nil and warnScopelessReads and activeEvaluationDepth > 0 then
+			-- `false` is a deliberate untracked read. Omitting the argument entirely
+			-- is the mistake worth reporting.
+			reportScopelessRead()
 		end
 	end
 
@@ -212,6 +293,10 @@ local function createSignal<T>(
 			end
 			value = newValue
 			version = os.clock()
+			if debugState then
+				debugState.version = version
+				debugState.value = value
+			end
 			notifyObservers()
 			if options == nil or options.flushOnSet ~= false then
 				flush()
@@ -219,10 +304,13 @@ local function createSignal<T>(
 		end
 	end
 
+	if debugState then
+		debugStates[getter] = debugState
+	end
 	return getter, setter
 end
 
-local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): getter<T>
+local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?, debugName: string?): getter<T>
 	local isInitialized = false
 	local isStale = false
 	local cachedVersion = 0
@@ -233,6 +321,7 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 	local observers: set<observer>
 
 	local isEqual: equals<T> = if equals ~= nil then equals else defaultEquals
+	local debugState: any = if showInternals then { name = debugName, version = 0 } else nil
 
 	local function notifyObservers()
 		for childObserver in observers do
@@ -255,11 +344,11 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 
 	local function evaluate(): T
 		if not hooksInstalled then
-			return callUserSpaceWithScope(computed, scope)
+			return evaluateWithScope(computed, scope)
 		end
 		local startedAt = beginComputedEval()
 		local ok, result = xpcall(function()
-			return callUserSpaceWithScope(computed, scope)
+			return evaluateWithScope(computed, scope)
 		end, debug.traceback)
 		endComputedEval(startedAt)
 		if not ok then
@@ -276,6 +365,10 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 			value = evaluate()
 			absoluteVersion = os.clock()
 			cachedVersion = absoluteVersion
+			if debugState then
+				debugState.version = absoluteVersion
+				debugState.value = value
+			end
 		end
 	end
 
@@ -298,6 +391,10 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 					if not callUserSpace(isEqual, value, newValue) then
 						value = newValue
 						cachedVersion = absoluteVersion
+						if debugState then
+							debugState.version = absoluteVersion
+							debugState.value = value
+						end
 					end
 					return
 				end
@@ -330,6 +427,10 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 			if childObserver ~= nil then
 				observers[childObserver] = true
 			end
+		elseif requestor == nil and warnScopelessReads and activeEvaluationDepth > 0 then
+			-- `false` is a deliberate untracked read. Omitting the argument entirely
+			-- is the mistake worth reporting.
+			reportScopelessRead()
 		end
 	end
 
@@ -340,6 +441,9 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?): ge
 		return value
 	end
 
+	if debugState then
+		debugStates[getter] = debugState
+	end
 	return getter
 end
 
@@ -403,7 +507,7 @@ local function createEffect(
 		if hooksInstalled then
 			local startedAt = beginEffectRun()
 			local ok, value = xpcall(function()
-				return callUserSpaceWithScope(effect, scope)
+				return evaluateWithScope(effect, scope)
 			end, debug.traceback)
 			endEffectRun(startedAt, debugName)
 			if not ok then
@@ -411,7 +515,7 @@ local function createEffect(
 			end
 			result = value
 		else
-			result = callUserSpaceWithScope(effect, scope)
+			result = evaluateWithScope(effect, scope)
 		end
 		if SignalsEffectCleanup and typeof(result) == "function" then
 			cleanup = result
@@ -496,6 +600,8 @@ return {
 	createComputed = createComputed,
 	createEffect = createEffect,
 
+	configure = configure,
+	getDebugState = getDebugState,
 	setHooks = setHooks,
 	isCallable = isCallable,
 }

@@ -10,6 +10,7 @@ export type SignalOptions = Signals.SignalOptions
 
 export type scope = Signals.scope
 
+export type Config = Signals.Config
 export type Hooks = Signals.Hooks
 
 return Signals

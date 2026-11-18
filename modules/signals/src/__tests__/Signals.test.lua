@@ -115,6 +115,8 @@ it("reports signal sets and the number of notified observers", function()
 	expect(setCount).toEqual(2)
 	expect(notified).toEqual({ 2, 0 })
 end)
+local SignalsEffectCleanup = require(Packages.SignalsFlags).SignalsEffectCleanup
+
 it("identifies functions and callable tables", function()
 	local callable = setmetatable({}, {
 		__call = function() end,
@@ -1122,10 +1124,9 @@ it("exposes requested signal and computed debug state", function()
 	expect(Signals.getDebugState(plain)).toEqual(nil)
 end)
 
-it("should run a returned cleanup before the next run of the effect", function()
+it("runs returned cleanup when explicitly enabled", function()
 	local get, set = createSignal(0)
 	local order = {}
-
 	local dispose = createEffect(function(scope)
 		local value = get(scope)
 		table.insert(order, `run {value}`)
@@ -1134,84 +1135,121 @@ it("should run a returned cleanup before the next run of the effect", function()
 		end
 	end, nil, nil, { cleanup = true })
 
-	task.wait()
-	expect(order).toEqual({ "run 0" }) -- nothing to clean up yet
-
 	set(1)
-
 	task.wait()
-	expect(order).toEqual({ "run 0", "cleanup 0", "run 1" })
-
 	dispose()
+	expect(order).toEqual({ "run 0", "cleanup 0", "run 1", "cleanup 1" })
 end)
 
-it("should run the last cleanup on dispose", function()
-	local cleanupCount = 0
-
-	local dispose = createEffect(function(_scope)
-		return function()
-			cleanupCount += 1
-		end
-	end, nil, nil, { cleanup = true })
-
-	task.wait()
-	expect(cleanupCount).toEqual(0)
-
-	dispose()
-	expect(cleanupCount).toEqual(1)
-
-	dispose()
-	expect(cleanupCount).toEqual(1) -- already cleaned up
-end)
-
-it("should keep running after a cleanup errors", function()
+it("ignores returned cleanup when explicitly disabled", function()
 	local get, set = createSignal(0)
-	local runCount = 0
-
+	local cleanupCount = 0
 	local dispose = createEffect(function(scope)
 		get(scope)
-		runCount += 1
-		return function()
-			error("cleanup blew up")
-		end
-	end, nil, nil, { cleanup = true })
-
-	task.wait()
-	expect(runCount).toEqual(1)
-
-	set(1)
-
-	task.wait()
-	expect(runCount).toEqual(2)
-
-	dispose()
-end)
-
-it("runs a returned cleanup when an effect disposes itself", function()
-	local get, set = createSignal(0)
-	local cleanupCount = 0
-	local dispose: () -> ()
-	dispose = createEffect(function(scope)
-		if get(scope) == 1 then
-			dispose()
-		end
 		return function()
 			cleanupCount += 1
 		end
-	end, nil, nil, { cleanup = true })
-	set(1)
-	expect(cleanupCount).toEqual(2)
-end)
-it("ignores returned cleanup functions when cleanup is disabled", function()
-	local called = false
-	local dispose = createEffect(function(_scope)
-		return function()
-			called = true
-		end
 	end, nil, nil, { cleanup = false })
+
+	set(1)
+	task.wait()
 	dispose()
-	expect(called).toEqual(false)
+	expect(cleanupCount).toEqual(0)
 end)
+
+if SignalsEffectCleanup then
+	it("should run a returned cleanup before the next run of the effect", function()
+		local get, set = createSignal(0)
+		local order = {}
+
+		local dispose = createEffect(function(scope)
+			local value = get(scope)
+			table.insert(order, `run {value}`)
+			return function()
+				table.insert(order, `cleanup {value}`)
+			end
+		end)
+
+		task.wait()
+		expect(order).toEqual({ "run 0" }) -- nothing to clean up yet
+
+		set(1)
+
+		task.wait()
+		expect(order).toEqual({ "run 0", "cleanup 0", "run 1" })
+
+		dispose()
+	end)
+
+	it("should run the last cleanup on dispose", function()
+		local cleanupCount = 0
+
+		local dispose = createEffect(function(_scope)
+			return function()
+				cleanupCount += 1
+			end
+		end)
+
+		task.wait()
+		expect(cleanupCount).toEqual(0)
+
+		dispose()
+		expect(cleanupCount).toEqual(1)
+
+		dispose()
+		expect(cleanupCount).toEqual(1) -- already cleaned up
+	end)
+
+	it("should keep running after a cleanup errors", function()
+		local get, set = createSignal(0)
+		local runCount = 0
+
+		local dispose = createEffect(function(scope)
+			get(scope)
+			runCount += 1
+			return function()
+				error("cleanup blew up")
+			end
+		end)
+
+		task.wait()
+		expect(runCount).toEqual(1)
+
+		set(1)
+
+		task.wait()
+		expect(runCount).toEqual(2)
+
+		dispose()
+	end)
+
+	it("runs a returned cleanup when an effect disposes itself", function()
+		local get, set = createSignal(0)
+		local cleanupCount = 0
+		local dispose: () -> ()
+		dispose = createEffect(function(scope)
+			if get(scope) == 1 then
+				dispose()
+			end
+			return function()
+				cleanupCount += 1
+			end
+		end)
+		set(1)
+		expect(cleanupCount).toEqual(2)
+	end)
+else
+	it("ignores returned cleanup functions while the rollout flag is off", function()
+		local called = false
+		local dispose = createEffect(function(_scope)
+			return function()
+				called = true
+			end
+		end)
+		dispose()
+		expect(called).toEqual(false)
+	end)
+end
 
 it("requires an external scheduler to defer effect work", function()
 	expect(function()

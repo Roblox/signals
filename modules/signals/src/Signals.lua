@@ -13,6 +13,7 @@ export type equals<T> = (current: T, incoming: T) -> boolean
 export type dispose = () -> ()
 export type work = () -> ()
 export type SignalOptions = { flushOnSet: boolean? }
+export type EffectOptions = { cleanup: boolean? }
 
 -- The "scope" function is used by a source (signals and computeds) to register itself with
 -- an observer (computeds and effects) when the source is read
@@ -347,9 +348,7 @@ local function createComputed<T>(computed: (scope) -> T, equals: equals<T>?, deb
 			return evaluateWithScope(computed, scope)
 		end
 		local startedAt = beginComputedEval()
-		local ok, result = xpcall(function()
-			return evaluateWithScope(computed, scope)
-		end, debug.traceback)
+		local ok, result = xpcall(evaluateWithScope, debug.traceback, computed, scope)
 		endComputedEval(startedAt)
 		if not ok then
 			error(result, 0)
@@ -458,13 +457,15 @@ end
 local function createEffect(
 	effect: (scope) -> ...(() -> ()),
 	scheduleWork: ((work) -> ())?,
-	debugName: string?
+	debugName: string?,
+	options: EffectOptions?
 ): dispose
 	local isInitialized = false
 	local isScheduled = false
 	local isDisposed = false
 	local version = 0
 	local cleanup: (() -> ())? = nil
+	local enableCleanup = if options and options.cleanup ~= nil then options.cleanup else SignalsEffectCleanup
 
 	local sources: set<source> = {}
 
@@ -506,9 +507,7 @@ local function createEffect(
 		local result
 		if hooksInstalled then
 			local startedAt = beginEffectRun()
-			local ok, value = xpcall(function()
-				return evaluateWithScope(effect, scope)
-			end, debug.traceback)
+			local ok, value = xpcall(evaluateWithScope, debug.traceback, effect, scope)
 			endEffectRun(startedAt, debugName)
 			if not ok then
 				error(value, 0)
@@ -517,7 +516,7 @@ local function createEffect(
 		else
 			result = evaluateWithScope(effect, scope)
 		end
-		if SignalsEffectCleanup and typeof(result) == "function" then
+		if enableCleanup and typeof(result) == "function" then
 			cleanup = result
 			if isDisposed then
 				runCleanup()

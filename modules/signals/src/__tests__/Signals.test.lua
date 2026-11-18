@@ -1124,6 +1124,39 @@ it("exposes requested signal and computed debug state", function()
 	expect(Signals.getDebugState(plain)).toEqual(nil)
 end)
 
+it("runs returned cleanup when explicitly enabled", function()
+	local get, set = createSignal(0)
+	local order = {}
+	local dispose = createEffect(function(scope)
+		local value = get(scope)
+		table.insert(order, `run {value}`)
+		return function()
+			table.insert(order, `cleanup {value}`)
+		end
+	end, nil, nil, { cleanup = true })
+
+	set(1)
+	task.wait()
+	dispose()
+	expect(order).toEqual({ "run 0", "cleanup 0", "run 1", "cleanup 1" })
+end)
+
+it("ignores returned cleanup when explicitly disabled", function()
+	local get, set = createSignal(0)
+	local cleanupCount = 0
+	local dispose = createEffect(function(scope)
+		get(scope)
+		return function()
+			cleanupCount += 1
+		end
+	end, nil, nil, { cleanup = false })
+
+	set(1)
+	task.wait()
+	dispose()
+	expect(cleanupCount).toEqual(0)
+end)
+
 if SignalsEffectCleanup then
 	it("should run a returned cleanup before the next run of the effect", function()
 		local get, set = createSignal(0)

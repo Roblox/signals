@@ -203,7 +203,7 @@ print(getFullName(false)) -- "Matt Tennant"
 Creates a reactive side effect that automatically re-runs when dependencies change.
 
 ```luau
-function createEffect(effect: (scope) -> ...(() -> ()), scheduleWork: ((work) -> ())?, debugName: string?): dispose
+function createEffect(effect: (scope) -> ...(() -> ()), scheduleWork: ((work) -> ())?, debugName: string?, options: EffectOptions?): dispose
 ```
 
 #### Parameters
@@ -211,6 +211,7 @@ function createEffect(effect: (scope) -> ...(() -> ()), scheduleWork: ((work) ->
 - **effect**: A function containing the side effect. Receives a `scope` parameter for tracking dependencies
 - **scheduleWork** *(optional)*: A host scheduler that must defer the supplied work until after the current notification pass. It also controls the first run.
 - **debugName** *(optional)*: A name included in effect timing hooks and cleanup error warnings.
+- **options.cleanup** *(optional)*: Override the `SignalsEffectCleanup` rollout flag for this effect. `true` runs returned cleanup functions; `false` ignores them.
 
 #### Returns
 
@@ -219,7 +220,7 @@ function createEffect(effect: (scope) -> ...(() -> ()), scheduleWork: ((work) ->
 #### Behavior
 
 - **Eager evaluation**: Runs immediately on creation unless `scheduleWork` is supplied
-- **Returned cleanup**: Under `SignalsEffectCleanup`, a returned function runs before the next effect run and on disposal. With the flag off, returned values are ignored as before.
+- **Returned cleanup**: When enabled by `SignalsEffectCleanup` or `options.cleanup = true`, a returned function runs before the next effect run and on disposal. `options.cleanup = false` keeps the old behavior even if the flag is on.
 - **Automatic re-runs**: Re-executes whenever dependencies change
 - **Automatic cleanup**: Old subscriptions are cleaned up before re-running
 - **Batched updates**: Multiple changes within a batch only trigger one re-run
